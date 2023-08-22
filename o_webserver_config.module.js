@@ -4,12 +4,12 @@ var o_webserver_config = {
   },
   o_not_encrypted:{        
       s_host: "::", // '::' = allow ipv4 and ipv6
-      n_port: 8088,
+      n_port: 8089,
       s_url: "http://localhost:${o_not_encrypted.n_port}/"
   },
   o_encrypted: {
       s_host: "::", // '::' = allow ipv4 and ipv6
-      n_port: 8448,
+      n_port: 8449,
       s_url: "https://localhost:${o_encrypted.n_port}/"
   },
   // s_host_name: "2606:4700:4700::1111"//one.one.one.one

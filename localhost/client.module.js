@@ -32,6 +32,7 @@ let f_download_text_file = function(
 
 
 window.o_state = {
+    b_play_cuts: false,
     n_o_file_n_id: 0, 
     a_o_file: [],
     o_file: null,
@@ -42,10 +43,12 @@ window.o_state = {
     o_trn_mouse_up: {n_x:0, n_y:0},
     o_trn_mouse_move: {n_x:0, n_y:0},
     a_o_video_cut: [], 
+    o_video_cut__before_playhead: null, 
+    o_video_cut__current_playhead: null, 
+    o_video_cut__after_playhead: null, 
     a_n_ms_cut: [], 
     n_ms_cut__closest_to_playhead: 0, 
     b_prevent_on_seeking_call_because_current_time_change : false,
-    b_prevent_on_scroll_event : false,
     n_id_recursive_function_call: 0, 
 };
 
@@ -89,7 +92,7 @@ let o_js__a_o_file,
     o_js__o_scrollbar; 
 
 let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time = true){
-    if(n_ms < 1 || !isFinite(n_ms)){return}
+
     let o_playhead_file = f_o_playhead_file(n_ms);
     o_state.n_ms_playhead = n_ms;
     let n_ms_cut__closest_to_playhead_last = o_state.n_ms_cut__closest_to_playhead;
@@ -102,9 +105,6 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
             n_ms_delta_min = n_ms_delta
             o_state.n_ms_cut__closest_to_playhead = n_ms_cut;
         }
-    }
-    if(n_ms_cut__closest_to_playhead_last != o_state.n_ms_cut__closest_to_playhead){
-        o_js__a_o_file?._f_render()
     }
 
 
@@ -120,21 +120,28 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
         let n_ms_nor = n_ms / n_ms_length_total;
         let n_x_px_scroll_max = o_el_scrollbar?.scrollWidth-o_el_scrollbar?.clientWidth;
         let n_x_px =  n_x_px_scroll_max * n_ms_nor; 
-        o_state.b_prevent_on_scroll_event = true
+
         o_el_scrollbar?.scrollTo(n_x_px,0);
-        window.setTimeout(function(){
-            o_state.b_prevent_on_scroll_event = false
-        },100)
+
     }
+
+    o_state.o_video_cut__before_playhead = o_state.a_o_video_cut.filter(
+        o=> o.n_ms_start_absolute + o.n_ms_length <= o_state.n_ms_playhead 
+    ).at(-1);
+
+    o_state.o_video_cut__current_playhead = o_state.a_o_video_cut.find(
+        o=> o.n_ms_start_absolute < o_state.n_ms_playhead && (o.n_ms_start_absolute + o.n_ms_length) > o_state.n_ms_playhead
+    );
+    
+    o_state.o_video_cut__after_playhead = o_state.a_o_video_cut.find(
+        o=> o.n_ms_start_absolute >= o_state.n_ms_playhead
+    );
+
+    o_js__a_o_file?._f_render()
 
 }
 
-
-
-let f_recursive_f_set_n_ms_per_px = function(){
-    
-    o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_per_px)
-
+let f_n_ms_video_current_time_absolute = function(){
     let n_ms_length_total = 0;
     for(let o_file of o_state?.a_o_file){
         if(o_file == o_state?.o_file){
@@ -142,11 +149,36 @@ let f_recursive_f_set_n_ms_per_px = function(){
         }
         n_ms_length_total += o_file.n_ms_length;
     }
+    let o_el_video = document.querySelector('.o_video_preview')
+    return n_ms_length_total + o_el_video.currentTime*1000 
+
+}
+
+let f_recursive_f_set_n_ms_playhead = function(){
     
-    f_update_o_state_n_ms_playhead(
-        n_ms_length_total+document.querySelector('.o_video_preview').currentTime*1000,
-        false
-    );
+    o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_playhead)
+
+    let n_ms_video_current_time_absolute = f_n_ms_video_current_time_absolute();
+    let n_ms_playhead = n_ms_video_current_time_absolute;
+
+
+    if(o_state.b_play_cuts){
+
+        if(!o_state.o_video_cut__current_playhead && o_state.o_video_cut__after_playhead){
+            // n_ms_playhead = o_state.o_video_cut__after_playhead.n_ms_start_absolute
+            f_update_o_state_n_ms_playhead(
+                o_state.o_video_cut__after_playhead.n_ms_start_absolute,
+                true
+            );
+            
+        }
+    }else{
+        f_update_o_state_n_ms_playhead(
+            n_ms_playhead,
+            false
+        );
+    }
+    
     
 }
 
@@ -160,10 +192,11 @@ let f_recursive_f_set_n_ms_per_px = function(){
                 src: o_state?.o_file?.s_src_object_url,
                 controls: "true",
                 onplaying: function(){
-                    o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_per_px)
+                    o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_playhead)
                 },
                 onpause: function(){
                     window.cancelAnimationFrame(o_state.n_id_recursive_function_call)
+                    o_state.b_play_cuts = false;
                 },
                 onseeking: function(){
                     if(o_state?.b_prevent_on_seeking_call_because_current_time_change){
@@ -283,7 +316,12 @@ let f_recursive_f_set_n_ms_per_px = function(){
                                         `width:${o_video_cut.n_ms_length / o_state.n_ms_per_px}px`,
                                     ].join(";")
                                 })(), 
-                                class: `o_video_cut`
+                                class: [
+                                    `${(o_video_cut == o_state.o_video_cut__before_playhead)? 'before': ''}`, 
+                                    `${(o_video_cut == o_state.o_video_cut__current_playhead)? 'current': ''}`, 
+                                    `${(o_video_cut == o_state.o_video_cut__after_playhead)? 'after': ''}`,
+                                    `o_video_cut`
+                                ].join(" ")
                             }
                         }
                     ),
@@ -304,6 +342,8 @@ let f_recursive_f_set_n_ms_per_px = function(){
         o_state.o_trn_mouse_down.n_y = window.event.clientY;
     }
     window.onmouseup = function(){
+        // console.log("mouseup")
+        o_state.b_mouse_down_o_scrollbar = false
         o_state.b_prevent_on_seeking_call_because_current_time_change = false
         o_state.o_trn_mouse_up.n_x = window.event.clientX;
         o_state.o_trn_mouse_up.n_y = window.event.clientY;
@@ -429,7 +469,7 @@ let f_recursive_f_set_n_ms_per_px = function(){
     o_js__o_scrollbar = {
         f_o_js: function(){
             return {
-                class: "o_scrollbar disable-select", 
+                class: "o_scrollbar disable_select", 
                 a_o: [ 
                     o_js__a_o_file
                 ],
@@ -442,9 +482,7 @@ let f_recursive_f_set_n_ms_per_px = function(){
                         n_y: window.event.clientY
                     };
                 },
-                onmouseup: function(){
-                    o_state.b_mouse_down_o_scrollbar = false
-                },                      
+                  
                 onmousemove: function(){
 
                     let n_x = o_state.o_trn_mouse_move.n_x - window.event.clientX;
@@ -492,7 +530,7 @@ let f_recursive_f_set_n_ms_per_px = function(){
 
                 a_o: [
                     {
-                        class: "o_playhead", 
+                        class: "o_playhead disable_select", 
                     }, 
                     o_js__o_scrollbar, 
                 ]
@@ -520,6 +558,23 @@ let f_recursive_f_set_n_ms_per_px = function(){
 
                     //     }
                     // }, 
+                    {
+                        s_tag: "button", 
+                        class: "clickable",
+                        innerText: "play cuts", 
+                        onclick: async function(){
+                            o_state.b_play_cuts = true;
+                            if(o_state.o_video_cut__after_playhead){
+                                f_update_o_state_n_ms_playhead(
+                                    o_state.o_video_cut__after_playhead.n_ms_start_absolute,
+                                    false
+                                );
+                                let vid = document.querySelector("video");
+                                vid?.play()
+
+                            }
+                        }
+                    },
                     {
                         s_tag: "button", 
                         class: "clickable",
@@ -807,7 +862,7 @@ let f_recursive_f_set_n_ms_per_px = function(){
             div{
                 box-sizing:border-box;
             },
-            .disable-select {
+            .disable_select {
                 -webkit-user-select: none;  
                 -moz-user-select: none;    
                 -ms-user-select: none;      
@@ -830,6 +885,10 @@ let f_recursive_f_set_n_ms_per_px = function(){
                 position:relative;
             }
             .o_playhead {
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
                 width: 1px;
                 height: 100%;
                 background: black;
@@ -840,6 +899,10 @@ let f_recursive_f_set_n_ms_per_px = function(){
             .o_scrollbar {
                 position: relative;
                 overflow-x: scroll;
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
             }
             .a_o_file{
                 display:flex;
@@ -873,6 +936,15 @@ let f_recursive_f_set_n_ms_per_px = function(){
                 height: 100%;
                 background: rgba(0,255,0,0.5);
                 z-index: 1;
+            }
+            .o_video_cut.before{
+                background: rgba(198,255,0,0.5);
+            }
+            .o_video_cut.current{
+                background: rgba(198,255,198,0.5);
+            }
+            .o_video_cut.after{
+                background: rgba(0,255,198,0.5);
             }
             .bar_pole_pattern {
                 background-image: 
