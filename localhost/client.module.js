@@ -163,22 +163,27 @@ let f_recursive_f_set_n_ms_playhead = function(){
 
 
     if(o_state.b_play_cuts){
-
+        // console.log('o_state.o_video_cut__current_playhead')
+        // console.log(o_state.o_video_cut__current_playhead)
+        // console.log('o_state.o_video_cut__after_playhead')
+        // console.log(o_state.o_video_cut__after_playhead)
         if(!o_state.o_video_cut__current_playhead && o_state.o_video_cut__after_playhead){
-            // n_ms_playhead = o_state.o_video_cut__after_playhead.n_ms_start_absolute
+            //n_ms_playhead = o_state.o_video_cut__after_playhead.n_ms_start_absolute
             f_update_o_state_n_ms_playhead(
-                o_state.o_video_cut__after_playhead.n_ms_start_absolute,
+                o_state.o_video_cut__after_playhead.n_ms_start_absolute+1,
                 true
             );
-            
+            console.log("heyeyey")
+            return 
         }
-    }else{
-        f_update_o_state_n_ms_playhead(
-            n_ms_playhead,
-            false
-        );
+        if(!o_state.o_video_cut__current_playhead && !o_state.o_video_cut__after_playhead){
+            document.querySelector("video")?.pause();
+        }
     }
-    
+    f_update_o_state_n_ms_playhead(
+        n_ms_playhead,
+        false
+    );
     
 }
 
@@ -565,12 +570,13 @@ let f_recursive_f_set_n_ms_playhead = function(){
                         onclick: async function(){
                             o_state.b_play_cuts = true;
                             if(o_state.o_video_cut__after_playhead){
-                                f_update_o_state_n_ms_playhead(
-                                    o_state.o_video_cut__after_playhead.n_ms_start_absolute,
-                                    false
-                                );
-                                let vid = document.querySelector("video");
-                                vid?.play()
+                                document.querySelector("video")?.play()
+                                // f_update_o_state_n_ms_playhead(
+                                //     o_state.o_video_cut__after_playhead.n_ms_start_absolute,
+                                //     false
+                                // );
+                                // let vid = document.querySelector("video");
+                                // vid?.play()
 
                             }
                         }
