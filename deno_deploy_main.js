@@ -5,6 +5,21 @@ async function handleRequest(o_request) {
 
   const o_url = new URL(o_request.url);
 
+
+  if(o_url.pathname == '/'){
+      let s_file_index = 'client.html'
+      return new Response(
+          `please go to ./${s_file_index}`,
+          {
+              status: 301,
+              headers: {
+                  "content-type": "plain/text",
+                  "Location": `/${s_file_index}`
+              },
+          }
+      );
+  }
+
   let o_folder_file = new O_folder_file(o_url.pathname);
   let s_file_content;
   try {
@@ -18,6 +33,8 @@ async function handleRequest(o_request) {
     }else{
         s_mime_type = "text/plain"
     }
+
+
     return new Response(
         s_file_content,
         {

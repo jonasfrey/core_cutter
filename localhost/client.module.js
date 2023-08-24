@@ -556,7 +556,10 @@ let f_recursive_f_set_n_ms_playhead = function(){
     let o = {
         class: "position_relative d_flex h_100vh",
         a_o:[
-            
+            {
+                b_render: !window.chrome,
+                innerText: "This app only works with chromium based browsers"
+            },
             o_js__video,
             {
                 class: "o_w_100", 
