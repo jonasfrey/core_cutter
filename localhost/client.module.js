@@ -556,12 +556,8 @@ let f_recursive_f_set_n_ms_playhead = function(){
     let o = {
         class: "position_relative d_flex h_100vh",
         a_o:[
-            {
-                class: "video", 
-                a_o:[
-                    o_js__video,
-                ]
-            },
+            
+            o_js__video,
             {
                 class: "o_w_100", 
 
@@ -926,7 +922,6 @@ let f_recursive_f_set_n_ms_playhead = function(){
 
     .d_flex{
         display: flex;
-        flex-wrap: wrap;
     }
 
     .w_1_t_7{
@@ -987,16 +982,13 @@ let f_recursive_f_set_n_ms_playhead = function(){
                 -ms-user-select: none;      
                 user-select: none;
             }
-            .video {
-                flex: 1 1 auto;
-                display:flex;
-                flex-direction:row;
-                align-items:center;
-                justify-content: center;
 
-            }
             video{
-                height:100%;
+                width: auto;
+                height: auto;
+                flex: 1 1 0;
+                min-width: 0;
+                min-height: 0;
             }
             .o_w_100{
                 width:100%;
