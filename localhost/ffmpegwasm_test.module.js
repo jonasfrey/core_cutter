@@ -7,6 +7,7 @@ import { FFmpeg } from './node_modules/@ffmpeg/ffmpeg/dist/esm/index.js';
 // console.log(fetchFile)
 let o_ffmpeg = new FFmpeg();
 console.log(o_ffmpeg);
+window.o_ffmpeg = o_ffmpeg
 // const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.2/dist/esm'
 const baseURL = window.location.origin
 await o_ffmpeg.load({
@@ -42,7 +43,7 @@ await o_ffmpeg.exec([
     `copy`,
     'output.mp4'
 ]);
-const data = await o_ffmpeg.readFile(s_file_name_output);
+// const data = await o_ffmpeg.readFile(s_file_name_output);
 await o_ffmpeg.exec([
     `-ss`,
     `00:00:20.001`,
@@ -54,7 +55,7 @@ await o_ffmpeg.exec([
     `copy`,
     'output2.mp4'
 ]);
-const data2 = await o_ffmpeg.readFile(s_file_name_output);
+// const data2 = await o_ffmpeg.readFile(s_file_name_output);
 // ffmpeg -i input.mp4 -ss 00:02:00 -t 00:07:28 part1.mp4
 
 // await o_ffmpeg.writeFile('data', data);

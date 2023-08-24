@@ -4,17 +4,33 @@ import {
     f_s_css_prefixed
 } from "https://deno.land/x/f_add_css@0.6/mod.js"
 
-let f_download_text_file = function(
+// ffmpeg for javascript made with wasm webassebmly 
+import { fetchFile, toBlobURL } from './node_modules/@ffmpeg/util/dist/esm/index.js';
+import { FFmpeg } from './node_modules/@ffmpeg/ffmpeg/dist/esm/index.js';
+let o_ffmpeg = new FFmpeg();
+// console.log(o_ffmpeg);
+// const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.2/dist/esm'
+const baseURL = window.location.origin
+await o_ffmpeg.load({
+    // coreURL: `./ffmpeg-core.js`,
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+    // wasmURL: `./ffmpeg-core.wasm`,
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+});
+
+let f_download_file = function(
     s_name_file, 
-    s_content
+    v_content, 
+    s_mime_type = 'plain/text'
 ){
 
     // Create a Blob object
-    const blob = new Blob([s_content], { type: 'plain/text' });
+    const blob = new Blob([v_content], { type: 'plain/text' });
     // Create an object URL
     const url = URL.createObjectURL(blob);
     // Create a new link
     const anchor = document.createElement('a');
+
     anchor.href = url;
     anchor.download = s_name_file;
     // Append to the DOM
@@ -28,10 +44,10 @@ let f_download_text_file = function(
 
 }
 
-// f_download_text_file("lol.txt", 'this is lol')
+// f_download_file("lol.txt", 'this is lol')
 
 
-window.o_state = {
+let o_state = {
     b_play_cuts: false,
     n_o_file_n_id: 0, 
     a_o_file: [],
@@ -51,6 +67,7 @@ window.o_state = {
     b_prevent_on_seeking_call_because_current_time_change : false,
     n_id_recursive_function_call: 0, 
 };
+window.o_state = o_state
 
 class O_file {
     constructor(         
@@ -519,6 +536,21 @@ let f_recursive_f_set_n_ms_playhead = function(){
         o_js__a_o_file?._f_render();
         f_update_o_state_n_ms_playhead(o_state.n_ms_playhead);
     }
+    let f_s_hms__from_n_ms = function(n_ms){
+        let n_hours = (((n_ms / 1000) / 60) / 60)
+        let n_minutes = (n_hours - parseInt(n_hours)) * 60;
+        let n_seconds = ((n_ms / 1000) % 60)
+        
+        return `${(''+parseInt(n_hours)).padStart(2, '0')}:${(''+parseInt(n_minutes)).padStart(2, '0')}:${(''+(n_seconds.toFixed(3))).padStart(6, '0')}`
+        // format 02.250
+    }
+    let f_s_name_file__from_o_video_cut = function(o_video_cut){
+        let n_idx = o_state.a_o_video_cut.indexOf(o_video_cut);
+        let s_name = `${o_video_cut.o_file.o_js_file.name}_${o_video_cut.n_id_video}_${n_idx}`.replace(/[^a-z0-9_]/gi, '');
+        let s_name_file = `${s_name}.mp4`;
+        return s_name_file
+    }
+
     
     window.o_js__o_scrollbar = o_js__o_scrollbar
     let o = {
@@ -603,36 +635,25 @@ let f_recursive_f_set_n_ms_playhead = function(){
                     {
                         s_tag: "button", 
                         class: "clickable",
-                        innerText: "get render .sh", 
+                        innerText: "merge cuts (.sh)", 
                         onclick: async function(){
-                            let f_s_hms__from_n_ms = function(n_ms){
-                                let n_hours = (((n_ms / 1000) / 60) / 60)
-                                let n_minutes = (n_hours - parseInt(n_hours)) * 60;
-                                let n_seconds = ((n_ms / 1000) % 60)
-                                
-                                return `${(''+parseInt(n_hours)).padStart(2, '0')}:${(''+parseInt(n_minutes)).padStart(2, '0')}:${(''+(n_seconds.toFixed(3))).padStart(6, '0')}`
-                                // format 02.250
-                            }
+
                             let n_ts = new Date().getTime()
-                            let f_s_name_file = function(o_video_cut){
-                                let n_idx = o_state.a_o_video_cut.indexOf(o_video_cut);
-                                let s_name = `${o_video_cut.o_file.o_js_file.name}_${o_video_cut.n_id_video}_${n_idx}`.replace(/[^a-z0-9_]/gi, '');
-                                let s_name_file = `${s_name}.mp4`;
-                                return s_name_file
-                            }
+                            
                             let s_name_list = `list_${n_ts}.txt`
-                            f_download_text_file(
+                            
+                            f_download_file(
                                 s_name_list,
                                 `
                                 ${o_state.a_o_video_cut.map(
                                     (o_video_cut)=>{
-                                        return `file '${f_s_name_file(o_video_cut)}'`
+                                        return `file '${f_s_name_file__from_o_video_cut(o_video_cut)}'`
                                     }
                                 ).join("\n")}
                                 `
                             )
                             let s_name_file_render = `render_${n_ts}.sh` 
-                            f_download_text_file(
+                            f_download_file(
                                 s_name_file_render, 
                                 `
                                 ${o_state.a_o_video_cut.map(
@@ -640,7 +661,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                         let s_file_name = `${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`;
                                         // return    `ffmpeg -i ${o_video_cut.o_file.o_js_file.name} -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -c:v copy -c:a copy ${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`
                                         // return `mencoder -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -endpos ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -oac pcm -ovc copy ${o_video_cut.o_file.o_js_file.name} -o ${s_file_name}`
-                                        return    `ffmpeg -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -i '${o_video_cut.o_file.o_js_file.name}' -c copy ${f_s_name_file(o_video_cut)}`
+                                        return    `ffmpeg -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -i '${o_video_cut.o_file.o_js_file.name}' -c copy ${f_s_name_file__from_o_video_cut(o_video_cut)}`
                                                     
                                     }
                                 ).join("\n")}
@@ -652,7 +673,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                         let s_file_name = `${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`;
                                         // return    `ffmpeg -i ${o_video_cut.o_file.o_js_file.name} -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -c:v copy -c:a copy ${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`
                                         // return `mencoder -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -endpos ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -oac pcm -ovc copy ${o_video_cut.o_file.o_js_file.name} -o ${s_file_name}`
-                                        return    `rm ${f_s_name_file(o_video_cut)}`
+                                        return    `rm ${f_s_name_file__from_o_video_cut(o_video_cut)}`
                                                     
                                     }
                                 ).join("\n")}
@@ -667,12 +688,104 @@ let f_recursive_f_set_n_ms_playhead = function(){
                     {
                         s_tag: "button", 
                         class: "clickable",
-                        innerText: "merge mp4 files .sh", 
+                        innerText: "merge cuts (.mp4)", 
+                        onclick: async function(){
+                            if(o_state.a_o_video_cut.length == 0){
+                                alert("cannot export any file since there are no video cuts, be shure to make at least two cuts to cut out a section of the video")
+                            }
+                            let n_ts = new Date().getTime()
+                            let s_file_name__default = `concatted_${n_ts}.mp4`
+                            let s_name_file_exported = prompt("file name:", s_file_name__default);
+                            let f_s_without_spaces = function(s){
+                                return s.replaceAll(' ', '_')
+                            }
+                            for(let o_file of o_state.a_o_file){
+                                await o_ffmpeg.writeFile(
+                                    f_s_without_spaces(o_file.o_js_file.name),
+                                    new Uint8Array((await o_file.o_js_file.arrayBuffer()))
+                                );
+                            }
+                            let s_name_file_list = 'list.txt'
+                            let utf8Encode = new TextEncoder();
+                            await o_ffmpeg.writeFile(s_name_file_list, utf8Encode.encode(
+                                o_state.a_o_video_cut.map(
+                                    (o_video_cut)=>{
+                                        return `file '${f_s_name_file__from_o_video_cut(o_video_cut)}'`
+                                    }
+                                ).join('\n')
+                            ));
+
+                            let a_s_command = o_state.a_o_video_cut.map(
+                                (o_video_cut, n_idx_o_video_cut)=>{
+                                    // return    `ffmpeg -i ${o_video_cut.o_file.o_js_file.name} -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -c:v copy -c:a copy ${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`
+                                    // return `mencoder -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -endpos ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -oac pcm -ovc copy ${o_video_cut.o_file.o_js_file.name} -o ${s_file_name}`
+                                    // return    `-ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -i '${o_video_cut.o_file.o_js_file.name}' -c copy ${f_s_name_file__from_o_video_cut(o_video_cut)}`   
+                                    return [
+                                        `-ss`,
+                                        f_s_hms__from_n_ms(o_video_cut.n_ms_start),
+                                        `-t`,
+                                        f_s_hms__from_n_ms(o_video_cut.n_ms_length),//duration
+                                        '-i',
+                                        `${f_s_without_spaces(o_video_cut.o_file.o_js_file.name)}`,
+                                        `-c`,
+                                        `copy`,
+                                        f_s_name_file__from_o_video_cut(o_video_cut)
+                                    ].join(" ")
+                                }
+                            )
+                            // await Promise.all(
+                            //     a_s_command.map(
+                            //         s_command => {
+                            //             return o_ffmpeg.exec(s_command.split(' '))
+                            //         }
+                            //     )
+                            // );
+                            for(let s_command of a_s_command){
+                                let o_res = await o_ffmpeg.exec(s_command.split(' '))
+                                console.log(o_res)
+                            }
+                            console.log('current o_ffmpeg virutal dir (.): ')
+                            console.log(await o_ffmpeg.listDir('.'))
+
+                            await o_ffmpeg.exec(
+                                `-f concat -i ${s_name_file_list} -c copy ${s_name_file_exported}`.split(' ')
+                            );
+                            const a_n_u8_file_exported = await o_ffmpeg.readFile(s_name_file_exported);
+                            
+                            // let o_el_vid = document.createElement("video");
+                            // o_el_vid.controls = true
+                            // document.body.appendChild(o_el_vid);
+                            // o_el_vid.src = URL.createObjectURL(
+                            //     new Blob(
+                            //         [a_n_u8_file_exported.buffer],
+                            //         {type: 'video/mp4'}
+                            //         )
+                            // );
+                            f_download_file(
+                                s_name_file_exported, 
+                                a_n_u8_file_exported.buffer, 
+                                'video/mp4'
+                            )
+
+                        }
+                    },
+                    {
+                        s_tag: "button", 
+                        class: "clickable",
+                        innerText: "merge mp4 files (export .mp4)", 
+                        onclick: async function(){
+
+                        }
+                    },
+                    {
+                        s_tag: "button", 
+                        class: "clickable",
+                        innerText: "merge mp4 files (export .sh)", 
                         onclick: async function(){
                             let n_ts = new Date().getTime()
 
                             let s_name_list = `list_${n_ts}.txt`
-                            f_download_text_file(
+                            f_download_file(
                                 s_name_list,
                                 `
                                 ${o_state.a_o_file.map(
@@ -685,7 +798,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                             let s_file_name__default = `mp4_files_merged_${n_ts}.mp4`
                             let s_file_name = prompt("file name:", s_file_name__default);
                             let s_name_file_render = `merge_mp4_files_${n_ts}.sh` 
-                            f_download_text_file(
+                            f_download_file(
                                 s_name_file_render, 
                                 `
                                 ${(()=>{
