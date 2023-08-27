@@ -327,6 +327,9 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                 o_file.n_ms_length = o_el_video.duration * 1000;   
                                 o_file.n_scl_x__px = o_el_video.videoWidth   
                                 o_file.n_scl_y__px = o_el_video.videoHeight
+                                f_update_o_state_n_ms_playhead(o_state.n_ms_playhead);
+                                o_js__video?._f_render();
+
                             }
                             console.log(o_file.s_src_object_url)
                             o_el_video.src = o_file.s_src_object_url
@@ -852,7 +855,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                     {
                         s_tag: "button", 
                         class: "clickable",
-                        innerText: "jmp nxt cut ('')", 
+                        innerText: "jmp nxt cut ('w')", 
                         onclick: async function(){
                             f_jump_n_ms_cut__prev();
                         }
