@@ -4,6 +4,9 @@ import {
     f_s_css_prefixed
 } from "https://deno.land/x/f_add_css@0.6/mod.js"
 
+import * as o_wave_surfer from './WaveSurfer.module.js'
+
+window.o_wave_surfer = o_wave_surfer
 // ffmpeg for javascript made with wasm webassebmly 
 import { fetchFile, toBlobURL } from './node_modules/@ffmpeg/util/dist/esm/index.js';
 import { FFmpeg } from './node_modules/@ffmpeg/ffmpeg/dist/esm/index.js';
@@ -84,6 +87,23 @@ let o_state = {
 };
 window.o_state = o_state
 
+function f_a_u_f32__from_wav_file(wavUint8Array) {
+    const buffer = wavUint8Array.buffer;
+
+    // Assuming data starts at byte 44, which is typical for WAVs without additional chunks in the header.
+    const audioDataStart = 44;
+    const int16Array = new Int16Array(buffer, audioDataStart);
+
+    // Convert 16-bit PCM data to Float32
+    const float32Array = new Float32Array(int16Array.length);
+    for (let i = 0; i < int16Array.length; i++) {
+        float32Array[i] = int16Array[i] / 0x8000;  // Normalize to [-1, 1]
+    }
+
+    return float32Array;
+}
+
+
 class O_file {
     constructor(         
         o_js_file,
@@ -96,6 +116,8 @@ class O_file {
         this.n_ms_length = null;
         this.n_scl_x__px = null;
         this.n_scl_y__px = null;
+        this.a_n_u8__audio_wav = null;
+        this.o_wavesurfer = null;
     }
 }
 class O_video_cut {
@@ -323,13 +345,53 @@ let f_recursive_f_set_n_ms_playhead = function(){
                             let o_el_video = document.createElement("video");
                             // document.body.appendChild(o_el_video)
                             // o_el_video.controls = true;
-                            o_el_video.onloadeddata = function(){
+                            o_el_video.onloadeddata = async function(){
                                 o_file.n_ms_length = o_el_video.duration * 1000;   
                                 o_file.n_scl_x__px = o_el_video.videoWidth   
                                 o_file.n_scl_y__px = o_el_video.videoHeight
                                 f_update_o_state_n_ms_playhead(o_state.n_ms_playhead);
                                 o_js__video?._f_render();
+                                let s_name_audio_out = `${encodeURIComponent(o_file.o_js_file.name).replaceAll(".", "_")}.wav`;
+                                let s_name_video_in = `${encodeURIComponent(o_file.o_js_file.name)}`;
+                                o_ffmpeg.writeFile(
+                                    s_name_video_in,
+                                    new Uint8Array((await o_file.o_js_file.arrayBuffer()))
+                                ).then(async ()=>{
+                                    let s_command = `-i ${s_name_video_in} ${s_name_audio_out}`;
+                                    f_execute_ffmpeg_command(
+                                        s_command.split(" ")
+                                    ).then(
+                                        ()=>{
 
+
+                                            o_ffmpeg.readFile(s_name_audio_out).then(async function(a_n_u8){
+                                                o_file.o_audio_blob = new Blob([a_n_u8], {
+                                                    type: "audio/wav",
+                                                  });
+                                                o_file.a_n_u8__audio_wav = a_n_u8
+    
+                                                let od = document.createElement("div");
+                                                od.id = 'ws' 
+                                                document.body.appendChild(od);
+                                                o_file.o_wavesurfer = o_wave_surfer.default.create({
+                                                    container: '#ws',
+                                                    waveColor: '#ffffff',
+                                                    progressColor: '#383351',
+                                                    // peaks: f_a_u_f32__from_wav_file(a_n_u8.buffer),
+                                                    // url: './ImperialMarch60.wav',
+                                                    // url: './concatted_1693091074101.mp4'
+                                                })
+                                                await o_file.o_wavesurfer.loadBlob(o_file.o_audio_blob);
+                                                o_file.s_audio_waveform_image_dataurl = o_file.o_wavesurfer.renderer.canvasWrapper.querySelector("canvas").toDataURL()
+                                                od.remove()
+                                                // o_wave_surfer.default.empty();
+                                                // o_wave_surfer.default.loadDecodedBuffer(a_n_u8.buffer);
+                                            });
+                                        }
+                                    );
+                                });
+
+                                
                             }
                             console.log(o_file.s_src_object_url)
                             o_el_video.src = o_file.s_src_object_url
@@ -364,7 +426,17 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                 style: (function(){
                                     return `flex:0 0 ${o_file.n_ms_length / o_state.n_ms_per_px}px`
                                 })(), 
-                                class: "o_file length bar_pole_pattern"
+                                class: "o_file length bar_pole_pattern", 
+                                a_o:[
+                                    {
+                                        s_tag: "img", 
+                                        class: 'waveform disable_select',
+
+                                        src: o_file?.s_audio_waveform_image_dataurl,
+                                        // style: 'height: 100%;',
+                                        // id: `${btoa(o_file.o_js_file.name)}`
+                                    }
+                                ]
                             }
                         }
                     ),
@@ -625,6 +697,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
         o_state.n_ms_per_px = n_ms_per_px;
         o_js__a_o_file?._f_render();
         f_update_o_state_n_ms_playhead(o_state.n_ms_playhead);
+
     }
     let f_s_hms__from_n_ms = function(n_ms){
         let n_hours = (((n_ms / 1000) / 60) / 60)
@@ -1271,12 +1344,18 @@ let f_recursive_f_set_n_ms_playhead = function(){
                 -moz-user-select: none;
                 -ms-user-select: none;
                 user-select: none;
-                width: 1px;
+                background: red;
+                border: 1px solid lime;
+                width: 2px;
                 height: 100%;
-                background: black;
                 z-index: 1;
                 position: absolute;
                 left: 50%;
+            }
+            .waveform{
+                width:100%;
+                height: 100%;
+                z-index:-1;
             }
             .o_scrollbar {
                 position: relative;
