@@ -8,6 +8,18 @@ import {
 import { fetchFile, toBlobURL } from './node_modules/@ffmpeg/util/dist/esm/index.js';
 import { FFmpeg } from './node_modules/@ffmpeg/ffmpeg/dist/esm/index.js';
 let o_ffmpeg = new FFmpeg();
+
+o_ffmpeg.on('log', ({ message }) => {
+    // console.log(`%c FFMPEGWASM:`, `color:blue;font-weight:bold;`);
+    console.log(message)
+});
+let f_execute_ffmpeg_command = async function(a_s_command){
+    console.log('executing the following ffmpeg command')
+    console.log(`ffmpeg ${a_s_command.join(' ')}`)
+    console.log(`---`)
+
+    return o_ffmpeg.exec.apply(null, arguments)
+}
 // console.log(o_ffmpeg);
 // const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.2/dist/esm'
 const baseURL = window.location.origin
@@ -17,6 +29,8 @@ await o_ffmpeg.load({
     // wasmURL: `./ffmpeg-core.wasm`,
     wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
 });
+
+
 
 let f_download_file = function(
     s_name_file, 
@@ -49,9 +63,10 @@ let f_download_file = function(
 
 let o_state = {
     b_play_cuts: false,
-    n_o_file_n_id: 0, 
+    n_o_file_n_id: 0,
     a_o_file: [],
     o_file: null,
+    o_playhead_file: null,
     n_ms_per_px: 10,
     n_ms_playhead: 0,
     b_mouse_down_o_scrollbar: false,
@@ -79,6 +94,8 @@ class O_file {
         this.b_loaded = false;
         this.s_src_object_url = null;
         this.n_ms_length = null;
+        this.n_scl_x__px = null;
+        this.n_scl_y__px = null;
     }
 }
 class O_video_cut {
@@ -106,11 +123,13 @@ let s_version = `0.1`;
 
 let o_js__a_o_file, 
     o_js__video,
-    o_js__o_scrollbar; 
+    o_js__o_scrollbar, 
+    o_js__o_video_o_js_video_name;
 
 let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time = true){
 
-    let o_playhead_file = f_o_playhead_file(n_ms);
+    o_state.o_playhead_file = f_o_playhead_file(n_ms);
+    o_js__o_video_o_js_video_name._f_render();
     o_state.n_ms_playhead = n_ms;
     let n_ms_cut__closest_to_playhead_last = o_state.n_ms_cut__closest_to_playhead;
     let n_ms_delta_min = Math.abs(o_state.n_ms_playhead - o_state.a_n_ms_cut?.[0]);
@@ -125,12 +144,12 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
     }
 
 
-    if(o_playhead_file.o_file != o_state.o_file){
-        o_state.o_file = o_playhead_file.o_file;
+    if(o_state.o_playhead_file.o_file != o_state.o_file){
+        o_state.o_file = o_state.o_playhead_file.o_file;
         o_js__video?._f_render();
     }
     if(b_update_video_current_time){
-        document.querySelector("video").currentTime = o_playhead_file.n_ms_playhead_relative / 1000;
+        document.querySelector("video").currentTime = o_state.o_playhead_file.n_ms_playhead_relative / 1000;
     }else{
         let o_el_scrollbar = document.querySelector(".o_scrollbar");
         let n_ms_length_total = f_n_ms_length_total()
@@ -204,40 +223,65 @@ let f_recursive_f_set_n_ms_playhead = function(){
     
 }
 
-
+    o_js__o_video_o_js_video_name = {
+        f_o_js: function(){
+            return {
+                class: "o_video_o_js_video_name", 
+                a_o: [
+                    {
+                        innerText: o_state?.o_playhead_file?.o_file?.o_js_file?.name
+                    }
+                ]
+            }
+        }
+    }
     o_js__video = {
         f_o_js: function(){
             return {
-                class: "o_video_preview",
-                s_tag: "video", 
-                id: "o_file_video",
-                src: o_state?.o_file?.s_src_object_url,
-                controls: "true",
-                onplaying: function(){
-                    o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_playhead)
-                },
-                onpause: function(){
-                    window.cancelAnimationFrame(o_state.n_id_recursive_function_call)
-                    o_state.b_play_cuts = false;
-                },
-                onseeking: function(){
-                    if(o_state?.b_prevent_on_seeking_call_because_current_time_change){
-                        return false;
-                    }
-                    // console.log("onseeking called (will be also called when currentTime changes)")
-                    let n_ms_length_total = 0;
-                    for(let o_file of o_state?.a_o_file){
-                        if(o_file == o_state?.o_file){
-                            break;
+                class: "video",
+                a_o: [
+                    o_js__o_video_o_js_video_name,
+                    {
+                        class: "o_video_preview",
+                        s_tag: "video", 
+                        id: "o_file_video",
+                        src: o_state?.o_file?.s_src_object_url,
+                        controls: "true",
+                        onplaying: function(){
+                            o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_playhead)
+                        },
+                        onpause: function(){
+                            window.cancelAnimationFrame(o_state.n_id_recursive_function_call)
+                            o_state.b_play_cuts = false;
+                        },
+                        onseeking: function(){
+                            if(o_state?.b_prevent_on_seeking_call_because_current_time_change){
+                                return false;
+                            }
+                            // console.log("onseeking called (will be also called when currentTime changes)")
+                            let n_ms_length_total = 0;
+                            for(let o_file of o_state?.a_o_file){
+                                if(o_file == o_state?.o_file){
+                                    break;
+                                }
+                                n_ms_length_total += o_file.n_ms_length;
+                            }
+                            
+                            f_update_o_state_n_ms_playhead(n_ms_length_total+this.currentTime*1000, false);
+                            
+                            // o_js__o_scrollbar?._f_render();
+                            // console.log(this.currentTime)
+                        },
+                        onended: function(){
+
+                            if(o_state.o_playhead_file.v_o_file__after){
+                                f_update_o_state_n_ms_playhead(o_state.n_ms_playhead+(1000/30), true);
+                                let o_el_video = document.querySelector("#o_file_video");
+                                o_el_video.play()
+                            }
                         }
-                        n_ms_length_total += o_file.n_ms_length;
                     }
-                    
-                    f_update_o_state_n_ms_playhead(n_ms_length_total+this.currentTime*1000, false);
-                    
-                    // o_js__o_scrollbar?._f_render();
-                    // console.log(this.currentTime)
-                }
+                ]
             }
         }
     };  
@@ -253,7 +297,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                         {
                             types: [
                               {
-                                description: "videos    ",
+                                description: "videos",
                                 accept: {
                                   "video/*": [".mp4" ],
                                 },
@@ -281,6 +325,8 @@ let f_recursive_f_set_n_ms_playhead = function(){
                             // o_el_video.controls = true;
                             o_el_video.onloadeddata = function(){
                                 o_file.n_ms_length = o_el_video.duration * 1000;   
+                                o_file.n_scl_x__px = o_el_video.videoWidth   
+                                o_file.n_scl_y__px = o_el_video.videoHeight
                             }
                             console.log(o_file.s_src_object_url)
                             o_el_video.src = o_file.s_src_object_url
@@ -374,11 +420,15 @@ let f_recursive_f_set_n_ms_playhead = function(){
         constructor(
             n_ms_playhead_absolute,
             n_ms_playhead_relative,
-            o_file
+            o_file, 
+            v_o_file__before,
+            v_o_file__after
         ){
             this.n_ms_playhead_absolute = n_ms_playhead_absolute,
             this.n_ms_playhead_relative = n_ms_playhead_relative,
             this.o_file = o_file
+            this.v_o_file__before = v_o_file__before
+            this.v_o_file__after = v_o_file__after
         }
     }
     let f_o_playhead_file = function(
@@ -387,40 +437,47 @@ let f_recursive_f_set_n_ms_playhead = function(){
         let n_ms_playhead_relative = n_ms_playhead_absolute;
 
         let n_ms_length_total = 0;
+        let n_idx_a_o_file = 0; 
         let o_file = o_state.a_o_file.find(
-            (o_file)=>{
+            (o_file, n_idx)=>{
                 let n_ms_length_total_new = n_ms_length_total + o_file.n_ms_length;
                 if(
                     n_ms_playhead_absolute >= n_ms_length_total 
                      && n_ms_playhead_absolute <= n_ms_length_total_new
                 ){
+                    n_idx_a_o_file = n_idx
                     return true
-                    return o_file
                 }
                 n_ms_playhead_relative = n_ms_playhead_relative - o_file.n_ms_length; 
                 n_ms_length_total = n_ms_length_total_new;
             }
         )
+        let n_idx_a_o_file__before = n_idx_a_o_file-1
+        let n_idx_a_o_file__after = n_idx_a_o_file+1
+        if(n_idx_a_o_file__before >= 0){} 
         // console.log('playhead o_file.o_js_file')
         // console.log(o_file.o_js_file)
         return new O_playhead_file(
             n_ms_playhead_absolute, 
             n_ms_playhead_relative, 
-            o_file
+            o_file, 
+            (n_idx_a_o_file__before >= 0)? o_state.a_o_file[n_idx_a_o_file__before]: null,
+            (n_idx_a_o_file__after < o_state.a_o_file.length)? o_state.a_o_file[n_idx_a_o_file__after]: null,
         )
     }
 
     let f_update_a_o_video_cut = function(){
         o_state.a_n_ms_cut = o_state.a_n_ms_cut.sort((n1,n2)=>n1-n2);
-
+        let b_mod_one = true;
         o_state.a_o_video_cut = o_state.a_n_ms_cut.map(
             (n_ms_cut, n_idx) => {
-                if(n_idx % 2 == 1){
+                if(n_idx % 2 == ((b_mod_one)?1:0)){
                     let n_ms_cut__last = o_state.a_n_ms_cut[n_idx-1];
                     let o_playhead_file_last = f_o_playhead_file(n_ms_cut__last);
                     let o_playhead_file = f_o_playhead_file(n_ms_cut);
                     console.log(o_playhead_file.o_file.o_js_file)
                     if(o_playhead_file_last.o_file != o_playhead_file.o_file){
+                        b_mod_one = !b_mod_one
                         return false
                     }
                     let n_ms_length = n_ms_cut - n_ms_cut__last
@@ -438,6 +495,21 @@ let f_recursive_f_set_n_ms_playhead = function(){
             }
         ).filter(v=>v)
     }
+    let f_jump_n_ms_cut__next = function(){
+
+        let n_ms_cut__next = o_state.a_n_ms_cut.sort((n1,n2)=>n1-n2).find(n=>parseInt(n)>parseInt(o_state.n_ms_playhead));
+        if(n_ms_cut__next){
+            f_update_o_state_n_ms_playhead(n_ms_cut__next, true);
+        }
+    };
+    let f_jump_n_ms_cut__prev = function(){
+
+        let n_ms_cut__prev = o_state.a_n_ms_cut.sort((n1,n2)=>n1-n2).reverse().find(n=>parseInt(n)<parseInt(o_state.n_ms_playhead));
+        if(n_ms_cut__prev){
+            f_update_o_state_n_ms_playhead(n_ms_cut__prev, true);
+        }
+    };
+
     let f_remove_cut = function(n_ms_cut){
         
         o_state.a_n_ms_cut = o_state.a_n_ms_cut.sort((n1,n2)=>n1-n2)
@@ -458,27 +530,42 @@ let f_recursive_f_set_n_ms_playhead = function(){
         o_js__a_o_file?._f_render();
         console.log(o_state.a_o_video_cut.map(o=>o.o_file.o_js_file.name));
     }
+    let a_n_keycode_keydown_last = [];
+    window.onkeyup = function(){
+        a_n_keycode_keydown_last = a_n_keycode_keydown_last.filter(n!=window.event.keyCode);
+    }
     window.onkeydown = function(){
-        if(window.event.keyCode == 's'.toUpperCase().charCodeAt(0)){
+        a_n_keycode_keydown_last.push(window.event.keyCode);
+        let f_n_keycode = (s_char)=>{return s_char.toUpperCase().charCodeAt(0)};
+        if(window.event.keyCode == f_n_keycode('s')){
             f_cut()
         }
-        if(window.event.keyCode == 'a'.toUpperCase().charCodeAt(0)){
+        if(window.event.keyCode == f_n_keycode('a')){
             f_remove_cut(o_state.n_ms_cut__closest_to_playhead)
         }
         let n_ms_one_frame_assumed = 1000/30;//30 fps
-        if(window.event.keyCode == 'q'.toUpperCase().charCodeAt(0)){
+        if(window.event.keyCode == f_n_keycode('q')){
             f_update_o_state_n_ms_playhead(Math.max(o_state.n_ms_playhead - n_ms_one_frame_assumed, 0));
         }
-        if(window.event.keyCode == 'e'.toUpperCase().charCodeAt(0)){
+        if(window.event.keyCode == f_n_keycode('e')){
             f_update_o_state_n_ms_playhead(Math.min(o_state.n_ms_playhead + n_ms_one_frame_assumed, f_n_ms_length_total()));
         }
-        if(window.event.keyCode == 'd'.toUpperCase().charCodeAt(0)){
+        if(window.event.keyCode == f_n_keycode('d')){
             f_update_o_state_n_ms_playhead(Math.max(o_state.n_ms_playhead - n_ms_one_frame_assumed*3, 0));
         }
-        if(window.event.keyCode == 'f'.toUpperCase().charCodeAt(0)){
+        if(window.event.keyCode == f_n_keycode('f')){
             f_update_o_state_n_ms_playhead(Math.min(o_state.n_ms_playhead + n_ms_one_frame_assumed*3, f_n_ms_length_total()));
         }
-        if(window.event.keyCode == ' '.toUpperCase().charCodeAt(0)){
+        if(window.event.keyCode == f_n_keycode('q')){
+            f_jump_n_ms_cut__prev()
+        }
+        if(window.event.keyCode == f_n_keycode('w')){
+            f_jump_n_ms_cut__next()
+        }
+        if(
+            !a_n_keycode_keydown_last.includes(f_n_keycode(' ')) 
+             && window.event.keyCode ==f_n_keycode(' ') 
+        ){
             let o_el_video = document.querySelector("#o_file_video");
             if(o_el_video.paused){
                 o_el_video.play()
@@ -546,12 +633,145 @@ let f_recursive_f_set_n_ms_playhead = function(){
     }
     let f_s_name_file__from_o_video_cut = function(o_video_cut){
         let n_idx = o_state.a_o_video_cut.indexOf(o_video_cut);
-        let s_name = `${o_video_cut.o_file.o_js_file.name}_${o_video_cut.n_id_video}_${n_idx}`.replace(/[^a-z0-9_]/gi, '');
-        let s_name_file = `${s_name}.mp4`;
-        return s_name_file
+
+        let a_s_part = o_video_cut.o_file.o_js_file.name.split(".");
+        let s_ext = a_s_part.pop()
+        let s_file_name_no_ext = `${a_s_part.join('.')}_cut`.replaceAll(/[^a-zA-Z0-9%]/g, '');
+
+        let s_name = encodeURIComponent(`${s_file_name_no_ext}_${o_video_cut.n_id_video}_${n_idx}.${s_ext}`);
+        return s_name
     }
 
-    
+    let f_render_and_download = async function(){
+
+        let b_merge_files = o_state.a_o_video_cut.length == 0 && o_state.a_o_file.length
+        let b_merge_cuts = o_state.a_o_video_cut.length > 0
+        if(
+            !b_merge_files && !b_merge_cuts
+            ){
+            alert("you must at least have  two cuts that make up a segment or two video files that are going to be merged")
+            return 
+        }
+        let n_ts = new Date().getTime()
+        let s_file_name__default = `concatted_${n_ts}.mp4`
+        let a_s_part = o_state?.o_playhead_file?.o_file?.o_js_file?.name.split(".");
+        let s_ext = a_s_part.pop()
+        s_file_name__default = `${a_s_part.join('.')}_cut.${s_ext}`
+
+        let s_name_file_exported = encodeURIComponent(prompt("file name:", s_file_name__default));
+
+        let n_scl_x__px__max = 0;
+        let n_scl_y__px__max = 0;
+
+        for(let o_file of o_state.a_o_file){
+            if(o_file.n_scl_x__px > n_scl_x__px__max){
+                n_scl_x__px__max = o_file.n_scl_x__px
+            }
+            if(o_file.n_scl_y__px > n_scl_y__px__max){
+                n_scl_y__px__max = o_file.n_scl_y__px
+            }
+        }
+        let f_s_name_file_out = function(s_file_name){
+            let a_s_part = s_file_name.split(".");
+            let s_ext = a_s_part.pop();
+
+            return `${encodeURIComponent(a_s_part.join("."))}_out.${s_ext}`
+        }
+
+
+        // write files to ffmpeg virtual file system, 
+        // if the file resolution does not match the maximum frame 
+        // it will get resized keeping the aspect ratio and filling the empty spaces with black borders
+        await Promise.all(
+            o_state.a_o_file.map(
+                async o_file => {
+                    let s_name_file_out = f_s_name_file_out(o_file.o_js_file.name);
+                    if(
+                        o_file.n_scl_x__px != n_scl_x__px__max
+                        &&
+                        o_file.n_scl_y__px != n_scl_y__px__max
+                    ){
+                        // bring smaller file to correct scale
+                        let s_command = `-i ${encodeURIComponent(o_file.o_js_file.name)} -vf scale=${n_scl_x__px__max}:${n_scl_y__px__max}:force_original_aspect_ratio=decrease,pad=${n_scl_x__px__max}:${n_scl_y__px__max}:-1:-1:color=black ${s_name_file_out}`;
+                        return f_execute_ffmpeg_command(
+                            s_command.split(" ")
+                        );
+                    }else{
+                        return o_ffmpeg.writeFile(
+                            s_name_file_out,
+                            new Uint8Array((await o_file.o_js_file.arrayBuffer()))
+                        );
+                    }
+                }
+            )
+        )
+        console.log('current o_ffmpeg virtual dir (.): ')
+        console.log(await o_ffmpeg.listDir('.'))
+        
+        let a_s_name_file__for_merging = o_state.a_o_file.map(
+            o_file => {
+                let s_name_file_out = f_s_name_file_out(o_file.o_js_file.name);
+                return s_name_file_out
+            }
+        );
+
+        if(b_merge_cuts){
+            a_s_name_file__for_merging = o_state.a_o_video_cut.map(
+                (o_video_cut, n_idx_o_video_cut)=>{
+                    return f_s_name_file__from_o_video_cut(o_video_cut)
+                }
+            )
+            await Promise.all(
+                o_state.a_o_video_cut.map(
+                    (o_video_cut, n_idx_o_video_cut)=>{
+
+                        // we take the inputfile (which could be already processed therefore having an output name) from before 
+                        let s_name_file_out = f_s_name_file_out(o_video_cut.o_file.o_js_file.name);
+
+                        // return    `ffmpeg -i ${o_video_cut.o_file.o_js_file.name} -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -c:v copy -c:a copy ${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`
+                        // return `mencoder -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -endpos ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -oac pcm -ovc copy ${o_video_cut.o_file.o_js_file.name} -o ${s_file_name}`
+                        // return    `-ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -i '${o_video_cut.o_file.o_js_file.name}' -c copy ${f_s_name_file__from_o_video_cut(o_video_cut)}`   
+                        return f_execute_ffmpeg_command([
+                            `-ss`,
+                            f_s_hms__from_n_ms(o_video_cut.n_ms_start),
+                            `-t`,
+                            f_s_hms__from_n_ms(o_video_cut.n_ms_length),//duration
+                            '-i',
+                            `${s_name_file_out}`,
+                            `-c`,
+                            `copy`,
+                            f_s_name_file__from_o_video_cut(o_video_cut)
+                        ])
+                    }
+                )
+            )
+            
+        }
+        let s_name_file_list = 'list.txt' 
+        let utf8Encode = new TextEncoder();
+        await o_ffmpeg.writeFile(s_name_file_list, utf8Encode.encode(
+            a_s_name_file__for_merging.map(
+                (s)=>{
+                    return `file '${s}'`
+                }
+            ).join('\n')
+        ));
+
+
+
+        
+        await f_execute_ffmpeg_command(
+            `-f concat -i ${s_name_file_list} -c copy ${s_name_file_exported}`.split(' ')
+        );
+        const a_n_u8_file_exported = await o_ffmpeg.readFile(s_name_file_exported);
+        
+        f_download_file(
+            decodeURIComponent(s_name_file_exported), 
+            a_n_u8_file_exported.buffer, 
+            'video/mp4'
+        )
+
+    }
     window.o_js__o_scrollbar = o_js__o_scrollbar
     let o = {
         class: "position_relative d_flex h_100vh",
@@ -624,6 +844,22 @@ let f_recursive_f_set_n_ms_playhead = function(){
                     {
                         s_tag: "button", 
                         class: "clickable",
+                        innerText: "jmp prv cut ('q')", 
+                        onclick: async function(){
+                            f_jump_n_ms_cut__next();
+                        }
+                    },
+                    {
+                        s_tag: "button", 
+                        class: "clickable",
+                        innerText: "jmp nxt cut ('')", 
+                        onclick: async function(){
+                            f_jump_n_ms_cut__prev();
+                        }
+                    },
+                    {
+                        s_tag: "button", 
+                        class: "clickable",
                         innerText: "remove cut ('a')", 
                         onclick: async function(){
 
@@ -634,182 +870,199 @@ let f_recursive_f_set_n_ms_playhead = function(){
                     {
                         s_tag: "button", 
                         class: "clickable",
-                        innerText: "merge cuts (.sh)", 
+                        innerText: "export (.mp4)", 
                         onclick: async function(){
-
-                            let n_ts = new Date().getTime()
-                            
-                            let s_name_list = `list_${n_ts}.txt`
-                            
-                            f_download_file(
-                                s_name_list,
-                                `
-                                ${o_state.a_o_video_cut.map(
-                                    (o_video_cut)=>{
-                                        return `file '${f_s_name_file__from_o_video_cut(o_video_cut)}'`
-                                    }
-                                ).join("\n")}
-                                `
-                            )
-                            let s_name_file_render = `render_${n_ts}.sh` 
-                            f_download_file(
-                                s_name_file_render, 
-                                `
-                                ${o_state.a_o_video_cut.map(
-                                    (o_video_cut, n_idx_o_video_cut)=>{
-                                        let s_file_name = `${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`;
-                                        // return    `ffmpeg -i ${o_video_cut.o_file.o_js_file.name} -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -c:v copy -c:a copy ${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`
-                                        // return `mencoder -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -endpos ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -oac pcm -ovc copy ${o_video_cut.o_file.o_js_file.name} -o ${s_file_name}`
-                                        return    `ffmpeg -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -i '${o_video_cut.o_file.o_js_file.name}' -c copy ${f_s_name_file__from_o_video_cut(o_video_cut)}`
-                                                    
-                                    }
-                                ).join("\n")}
-                                ${(()=>{
-                                    return `ffmpeg -f concat -i ${s_name_list} -c copy concatted_${n_ts}.mp4`
-                                })()}
-                                ${o_state.a_o_video_cut.map(
-                                    (o_video_cut, n_idx_o_video_cut)=>{
-                                        let s_file_name = `${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`;
-                                        // return    `ffmpeg -i ${o_video_cut.o_file.o_js_file.name} -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -c:v copy -c:a copy ${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`
-                                        // return `mencoder -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -endpos ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -oac pcm -ovc copy ${o_video_cut.o_file.o_js_file.name} -o ${s_file_name}`
-                                        return    `rm ${f_s_name_file__from_o_video_cut(o_video_cut)}`
-                                                    
-                                    }
-                                ).join("\n")}
-                                rm ${s_name_list}
-                                rm ${s_name_file_render}
-
-                                `
-                            )
-                            
+                            f_render_and_download();
                         }
                     },
-                    {
-                        s_tag: "button", 
-                        class: "clickable",
-                        innerText: "merge cuts (.mp4)", 
-                        onclick: async function(){
-                            if(o_state.a_o_video_cut.length == 0){
-                                alert("cannot export any file since there are no video cuts, be shure to make at least two cuts to cut out a section of the video")
-                            }
-                            let n_ts = new Date().getTime()
-                            let s_file_name__default = `concatted_${n_ts}.mp4`
-                            let s_name_file_exported = prompt("file name:", s_file_name__default);
-                            let f_s_without_spaces = function(s){
-                                return s.replaceAll(' ', '_')
-                            }
-                            for(let o_file of o_state.a_o_file){
-                                await o_ffmpeg.writeFile(
-                                    f_s_without_spaces(o_file.o_js_file.name),
-                                    new Uint8Array((await o_file.o_js_file.arrayBuffer()))
-                                );
-                            }
-                            let s_name_file_list = 'list.txt'
-                            let utf8Encode = new TextEncoder();
-                            await o_ffmpeg.writeFile(s_name_file_list, utf8Encode.encode(
-                                o_state.a_o_video_cut.map(
-                                    (o_video_cut)=>{
-                                        return `file '${f_s_name_file__from_o_video_cut(o_video_cut)}'`
-                                    }
-                                ).join('\n')
-                            ));
+                    // {
+                    //     s_tag: "button", 
+                    //     class: "clickable",
+                    //     innerText: "merge cuts (.mp4)", 
+                    //     onclick: async function(){
+                    //         f_render_and_download();
 
-                            let a_s_command = o_state.a_o_video_cut.map(
-                                (o_video_cut, n_idx_o_video_cut)=>{
-                                    // return    `ffmpeg -i ${o_video_cut.o_file.o_js_file.name} -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -c:v copy -c:a copy ${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`
-                                    // return `mencoder -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -endpos ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -oac pcm -ovc copy ${o_video_cut.o_file.o_js_file.name} -o ${s_file_name}`
-                                    // return    `-ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -i '${o_video_cut.o_file.o_js_file.name}' -c copy ${f_s_name_file__from_o_video_cut(o_video_cut)}`   
-                                    return [
-                                        `-ss`,
-                                        f_s_hms__from_n_ms(o_video_cut.n_ms_start),
-                                        `-t`,
-                                        f_s_hms__from_n_ms(o_video_cut.n_ms_length),//duration
-                                        '-i',
-                                        `${f_s_without_spaces(o_video_cut.o_file.o_js_file.name)}`,
-                                        `-c`,
-                                        `copy`,
-                                        f_s_name_file__from_o_video_cut(o_video_cut)
-                                    ].join(" ")
-                                }
-                            )
-                            // await Promise.all(
-                            //     a_s_command.map(
-                            //         s_command => {
-                            //             return o_ffmpeg.exec(s_command.split(' '))
-                            //         }
-                            //     )
-                            // );
-                            for(let s_command of a_s_command){
-                                let o_res = await o_ffmpeg.exec(s_command.split(' '))
-                                console.log(o_res)
-                            }
-                            console.log('current o_ffmpeg virutal dir (.): ')
-                            console.log(await o_ffmpeg.listDir('.'))
+                    //         if(o_state.a_o_video_cut.length == 0){
+                    //             alert("cannot export any file since there are no video cuts, be shure to make at least two cuts to cut out a section of the video")
+                    //         }
+                    //         let n_ts = new Date().getTime()
+                    //         let s_file_name__default = `concatted_${n_ts}.mp4`
+                    //         let a_s_part = o_state?.o_playhead_file?.o_file?.o_js_file?.name.split(".");
+                    //         let s_ext = a_s_part.pop()
+                    //         s_file_name__default = `${a_s_part.join('.')}_cut.${s_ext}`
 
-                            await o_ffmpeg.exec(
-                                `-f concat -i ${s_name_file_list} -c copy ${s_name_file_exported}`.split(' ')
-                            );
-                            const a_n_u8_file_exported = await o_ffmpeg.readFile(s_name_file_exported);
+                    //         let s_name_file_exported = encodeURIComponent(prompt("file name:", s_file_name__default));
+
+                    //         for(let o_file of o_state.a_o_file){
+                    //             await o_ffmpeg.writeFile(
+                    //                 encodeURIComponent(o_file.o_js_file.name),
+                    //                 new Uint8Array((await o_file.o_js_file.arrayBuffer()))
+                    //             );
+                    //         }
+                    //         let s_name_file_list = 'list.txt'
+                    //         let utf8Encode = new TextEncoder();
+                    //         await o_ffmpeg.writeFile(s_name_file_list, utf8Encode.encode(
+                    //             o_state.a_o_video_cut.map(
+                    //                 (o_video_cut)=>{
+                    //                     return `file '${f_s_name_file__from_o_video_cut(o_video_cut)}'`
+                    //                 }
+                    //             ).join('\n')
+                    //         ));
+
+                    //         let a_s_command = o_state.a_o_video_cut.map(
+                    //             (o_video_cut, n_idx_o_video_cut)=>{
+                    //                 // return    `ffmpeg -i ${o_video_cut.o_file.o_js_file.name} -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -c:v copy -c:a copy ${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`
+                    //                 // return `mencoder -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -endpos ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -oac pcm -ovc copy ${o_video_cut.o_file.o_js_file.name} -o ${s_file_name}`
+                    //                 // return    `-ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -i '${o_video_cut.o_file.o_js_file.name}' -c copy ${f_s_name_file__from_o_video_cut(o_video_cut)}`   
+                    //                 return [
+                    //                     `-ss`,
+                    //                     f_s_hms__from_n_ms(o_video_cut.n_ms_start),
+                    //                     `-t`,
+                    //                     f_s_hms__from_n_ms(o_video_cut.n_ms_length),//duration
+                    //                     '-i',
+                    //                     `${encodeURIComponent(o_video_cut.o_file.o_js_file.name)}`,
+                    //                     `-c`,
+                    //                     `copy`,
+                    //                     f_s_name_file__from_o_video_cut(o_video_cut)
+                    //                 ].join(" ")
+                    //             }
+                    //         )
+
+                    //         for(let s_command of a_s_command){
+                    //             let o_res = await f_execute_ffmpeg_command(s_command.split(' '))
+                    //             console.log(o_res)
+                    //         }
+                    //         console.log('current o_ffmpeg virutal dir (.): ')
+                    //         console.log(await o_ffmpeg.listDir('.'))
+
+                    //         await f_execute_ffmpeg_command(
+                    //             `-f concat -i ${s_name_file_list} -c copy ${s_name_file_exported}`.split(' ')
+                    //         );
+                    //         const a_n_u8_file_exported = await o_ffmpeg.readFile(s_name_file_exported);
                             
-                            // let o_el_vid = document.createElement("video");
-                            // o_el_vid.controls = true
-                            // document.body.appendChild(o_el_vid);
-                            // o_el_vid.src = URL.createObjectURL(
-                            //     new Blob(
-                            //         [a_n_u8_file_exported.buffer],
-                            //         {type: 'video/mp4'}
-                            //         )
-                            // );
-                            f_download_file(
-                                s_name_file_exported, 
-                                a_n_u8_file_exported.buffer, 
-                                'video/mp4'
-                            )
 
-                        }
-                    },
-                    {
-                        s_tag: "button", 
-                        class: "clickable",
-                        innerText: "merge mp4 files (export .mp4)", 
-                        onclick: async function(){
+                    //         f_download_file(
+                    //             decodeURIComponent(s_name_file_exported), 
+                    //             a_n_u8_file_exported.buffer, 
+                    //             'video/mp4'
+                    //         )
 
-                        }
-                    },
-                    {
-                        s_tag: "button", 
-                        class: "clickable",
-                        innerText: "merge mp4 files (export .sh)", 
-                        onclick: async function(){
-                            let n_ts = new Date().getTime()
+                    //     }
+                    // },
+                    // {
+                    //     s_tag: "button", 
+                    //     class: "clickable",
+                    //     innerText: "merge mp4 files (export .mp4)", 
+                    //     onclick: async function(){
+                    //         if(o_state.a_o_file.length == 0){
+                    //             alert("cannot export any file since there are no files loaded")
+                    //         }
+                    //         let n_ts = new Date().getTime()
+                    //         let s_file_name__default = `concatted_${n_ts}.mp4`
 
-                            let s_name_list = `list_${n_ts}.txt`
-                            f_download_file(
-                                s_name_list,
-                                `
-                                ${o_state.a_o_file.map(
-                                    (o_file)=>{
-                                        return `file '${o_file.o_js_file.name}'`
-                                    }
-                                ).join("\n")}
-                                `
-                            )
-                            let s_file_name__default = `mp4_files_merged_${n_ts}.mp4`
-                            let s_file_name = prompt("file name:", s_file_name__default);
-                            let s_name_file_render = `merge_mp4_files_${n_ts}.sh` 
-                            f_download_file(
-                                s_name_file_render, 
-                                `
-                                ${(()=>{
-                                    return `ffmpeg -f concat -i ${s_name_list} -c copy ${s_file_name}`
-                                })()}
-                                rm ${s_name_list}
-                                rm ${s_name_file_render}
+                    //         let s_name_file_exported = f_s_without_spaces(prompt("file name:", s_file_name__default));
+                        
+                    //         let n_scl_x__px__max = 0;
+                    //         let n_scl_y__px__max = 0;
 
-                                `
-                            )
-                        }
-                    },
+                    //         for(let o_file of o_state.a_o_file){
+                    //             if(o_file.n_scl_x__px > n_scl_x__px__max){
+                    //                 n_scl_x__px__max = o_file.n_scl_x__px
+                    //             }
+                    //             if(o_file.n_scl_y__px > n_scl_y__px__max){
+                    //                 n_scl_y__px__max = o_file.n_scl_y__px
+                    //             }
+                    //         }
+                    //         await Promise.all(
+                    //             o_state.a_o_file.map(
+                    //                 async o_file => {
+                    //                     return o_ffmpeg.writeFile(
+                    //                         f_s_without_spaces(o_file.o_js_file.name),
+                    //                         new Uint8Array((await o_file.o_js_file.arrayBuffer()))
+                    //                     );
+                    //                 }
+                    //             )
+                    //         )
+
+                    //         await Promise.all(
+                    //             o_state.a_o_file.map(
+                    //                 async o_file => {
+                    //                     let s_command = `-i ${f_s_without_spaces(o_file.o_js_file.name)} -vf scale=${n_scl_x__px__max}:${n_scl_y__px__max}:force_original_aspect_ratio=decrease,pad=${n_scl_x__px__max}:${n_scl_y__px__max}:-1:-1:color=black ${f_s_without_spaces__out(o_file.o_js_file.name)}`;
+                    //                     return f_execute_ffmpeg_command(
+                    //                         s_command.split(" ")
+                    //                     );
+                    //                 }
+                    //             )
+                    //         )
+
+                    //         // for(let o_file of o_state.a_o_file){
+                    //         //     let s_command = `-i ${f_s_without_spaces(o_file.o_js_file.name)} -vf scale=${n_scl_x__px__max}:${n_scl_y__px__max}:force_original_aspect_ratio=decrease,pad=${n_scl_x__px__max}:${n_scl_y__px__max}:-1:-1:color=black ${f_s_without_spaces__out(o_file.o_js_file.name)}`;
+                    //         //     // `-i earth.mp4 -vf "scale=2000:1000:force_original_aspect_ratio=decrease,pad=2000:1000:-1:-1:color=red" vi.mp4`
+
+                    //         //     await f_execute_ffmpeg_command(
+                    //         //         s_command.split(" ")
+                    //         //     );
+                    //         // }
+                    //         // console.log('current o_ffmpeg virutal dir (.): ')
+                    //         // console.log(await o_ffmpeg.listDir('.'))
+                    //         let s_name_file_list = 'list.txt'
+                    //         let utf8Encode = new TextEncoder();
+                    //         await o_ffmpeg.writeFile(s_name_file_list, utf8Encode.encode(
+                    //             o_state.a_o_file.map(
+                    //                 (o_file)=>{
+                    //                     return `file '${f_s_without_spaces__out(o_file.o_js_file.name)}'`
+                    //                 }
+                    //             ).join('\n')
+                    //         ));
+
+
+
+                    //         await f_execute_ffmpeg_command(
+                    //             `-f concat -i ${s_name_file_list} -c copy ${s_name_file_exported}`.split(' ')
+                    //         );
+                    //         const a_n_u8_file_exported = await o_ffmpeg.readFile(s_name_file_exported);
+
+                    //         f_download_file(
+                    //             s_name_file_exported, 
+                    //             a_n_u8_file_exported.buffer, 
+                    //             'video/mp4'
+                    //         )
+                    //     }
+                    // },
+                    // {
+                    //     s_tag: "button", 
+                    //     class: "clickable",
+                    //     innerText: "merge mp4 files (export .sh)", 
+                    //     onclick: async function(){
+                    //         let n_ts = new Date().getTime()
+
+                    //         let s_name_list = `list_${n_ts}.txt`
+                    //         f_download_file(
+                    //             s_name_list,
+                    //             `
+                    //             ${o_state.a_o_file.map(
+                    //                 (o_file)=>{
+                    //                     return `file '${o_file.o_js_file.name}'`
+                    //                 }
+                    //             ).join("\n")}
+                    //             `
+                    //         )
+                    //         let s_file_name__default = `mp4_files_merged_${n_ts}.mp4`
+                    //         let s_file_name = prompt("file name:", s_file_name__default);
+                    //         let s_name_file_render = `merge_mp4_files_${n_ts}.sh` 
+                    //         f_download_file(
+                    //             s_name_file_render, 
+                    //             `
+                    //             ${(()=>{
+                    //                 return `ffmpeg -f concat -i ${s_name_list} -c copy ${s_file_name}`
+                    //             })()}
+                    //             rm ${s_name_list}
+                    //             rm ${s_name_file_render}
+
+                    //             `
+                    //         )
+                    //     }
+                    // },
                     o_js__filepicker
                 ]
             }
@@ -985,8 +1238,20 @@ let f_recursive_f_set_n_ms_playhead = function(){
                 -ms-user-select: none;      
                 user-select: none;
             }
-
-            video{
+            .video{
+                position:relative;
+            }
+            .o_video_o_js_video_name {
+                position: absolute;
+                z-index: 1;
+                width: 100%;
+                display: flex;
+                padding: 2rem;
+                background: rgba(0,0,0,0.2);
+            }
+            
+            .video,video{
+                display:flex;
                 width: auto;
                 height: auto;
                 flex: 1 1 0;
