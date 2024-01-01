@@ -1353,6 +1353,9 @@ let f_recursive_f_set_n_ms_playhead = function(){
                 left: 50%;
             }
             .waveform{
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
                 width:100%;
                 height: 100%;
                 z-index:-1;
