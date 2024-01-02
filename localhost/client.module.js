@@ -1,4 +1,4 @@
-import {f_o_html_from_o_js} from "https://deno.land/x/f_o_html_from_o_js@0.7/mod.js";
+import {f_o_html__and_make_renderable} from "https://deno.land/x/f_o_html_from_o_js@2.1/mod.js";
 import {
     f_add_css,
     f_s_css_prefixed
@@ -87,6 +87,17 @@ let o_state = {
 };
 window.o_state = o_state
 
+let o_o_js = {};
+let f_o_js_from_s_name = function(s_name, o){
+    if(!o_o_js[s_name]){
+        o_o_js[s_name] = o
+    }else{
+        return o_o_js[s_name]
+    }
+    return o
+}
+
+
 function f_a_u_f32__from_wav_file(wavUint8Array) {
     const buffer = wavUint8Array.buffer;
 
@@ -143,15 +154,10 @@ let f_s_version_suffix = function(s_version_with_dot){
 }
 let s_version = `0.1`;
 
-let o_js__a_o_file, 
-    o_js__video,
-    o_js__o_scrollbar, 
-    o_js__o_video_o_js_video_name;
-
 let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time = true){
 
     o_state.o_playhead_file = f_o_playhead_file(n_ms);
-    o_js__o_video_o_js_video_name._f_render();
+    o_o_js?.o_js__o_video_o_js_video_name._f_render();
     o_state.n_ms_playhead = n_ms;
     let n_ms_cut__closest_to_playhead_last = o_state.n_ms_cut__closest_to_playhead;
     let n_ms_delta_min = Math.abs(o_state.n_ms_playhead - o_state.a_n_ms_cut?.[0]);
@@ -168,7 +174,7 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
 
     if(o_state.o_playhead_file.o_file != o_state.o_file){
         o_state.o_file = o_state.o_playhead_file.o_file;
-        o_js__video?._f_render();
+        o_o_js?.o_js__video?._f_render();
     }
     if(b_update_video_current_time){
         document.querySelector("video").currentTime = o_state.o_playhead_file.n_ms_playhead_relative / 1000;
@@ -195,7 +201,8 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
         o=> o.n_ms_start_absolute >= o_state.n_ms_playhead
     );
 
-    o_js__a_o_file?._f_render()
+    o_o_js?.o_js__a_o_file?._f_render()
+    o_o_js?.o_js__current_video_global_time_range_slider?._f_update();
 
 }
 
@@ -231,7 +238,6 @@ let f_recursive_f_set_n_ms_playhead = function(){
                 o_state.o_video_cut__after_playhead.n_ms_start_absolute+1,
                 true
             );
-            console.log("heyeyey")
             return 
         }
         if(!o_state.o_video_cut__current_playhead && !o_state.o_video_cut__after_playhead){
@@ -245,246 +251,19 @@ let f_recursive_f_set_n_ms_playhead = function(){
     
 }
 
-    o_js__o_video_o_js_video_name = {
-        f_o_js: function(){
-            return {
-                class: "o_video_o_js_video_name", 
-                a_o: [
-                    {
-                        innerText: o_state?.o_playhead_file?.o_file?.o_js_file?.name
-                    }
-                ]
-            }
-        }
-    }
-    o_js__video = {
-        f_o_js: function(){
-            return {
-                class: "video",
-                a_o: [
-                    o_js__o_video_o_js_video_name,
-                    {
-                        class: "o_video_preview",
-                        s_tag: "video", 
-                        id: "o_file_video",
-                        src: o_state?.o_file?.s_src_object_url,
-                        controls: "true",
-                        onplaying: function(){
-                            o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_playhead)
-                        },
-                        onpause: function(){
-                            window.cancelAnimationFrame(o_state.n_id_recursive_function_call)
-                            o_state.b_play_cuts = false;
-                        },
-                        onseeking: function(){
-                            if(o_state?.b_prevent_on_seeking_call_because_current_time_change){
-                                return false;
-                            }
-                            // console.log("onseeking called (will be also called when currentTime changes)")
-                            let n_ms_length_total = 0;
-                            for(let o_file of o_state?.a_o_file){
-                                if(o_file == o_state?.o_file){
-                                    break;
-                                }
-                                n_ms_length_total += o_file.n_ms_length;
-                            }
-                            
-                            f_update_o_state_n_ms_playhead(n_ms_length_total+this.currentTime*1000, false);
-                            
-                            // o_js__o_scrollbar?._f_render();
-                            // console.log(this.currentTime)
-                        },
-                        onended: function(){
-
-                            if(o_state.o_playhead_file.v_o_file__after){
-                                f_update_o_state_n_ms_playhead(o_state.n_ms_playhead+(1000/30), true);
-                                let o_el_video = document.querySelector("#o_file_video");
-                                o_el_video.play()
-                            }
-                        }
-                    }
-                ]
-            }
-        }
-    };  
-    let o_js__filepicker = {
-        f_o_js: function(){
-            return {
-                s_tag: "button", 
-                class: "clickable",
-                innerText: "add file(s) +", 
-                onclick: async function(){
-
-                    let a_o_file_handle = await window.showOpenFilePicker(
-                        {
-                            types: [
-                              {
-                                description: "videos",
-                                accept: {
-                                  "video/*": [".mp4" ],
-                                },
-                              },
-                            ],
-                            excludeAcceptAllOption: true,
-                            multiple: true,
-                          }
-                    );
-                    for(let o_file_handle of a_o_file_handle){
-
-                        let o_file = new O_file(await o_file_handle.getFile());
-                        o_state.a_o_file.push(o_file);
-                        
-                        let s_video_src_object_url = URL.createObjectURL(o_file.o_js_file);
-                        var o_reader = new FileReader();
-                        o_reader.onload = function() {
-                            o_file.b_loaded = true;
-                            o_file.s_src_object_url = s_video_src_object_url;
-                            
-                            o_js__video._f_render();
-                            // let o_el_video = document.querySelector("#o_file_video");
-                            let o_el_video = document.createElement("video");
-                            // document.body.appendChild(o_el_video)
-                            // o_el_video.controls = true;
-                            o_el_video.onloadeddata = async function(){
-                                o_file.n_ms_length = o_el_video.duration * 1000;   
-                                o_file.n_scl_x__px = o_el_video.videoWidth   
-                                o_file.n_scl_y__px = o_el_video.videoHeight
-                                f_update_o_state_n_ms_playhead(o_state.n_ms_playhead);
-                                o_js__video?._f_render();
-                                let s_name_audio_out = `${encodeURIComponent(o_file.o_js_file.name).replaceAll(".", "_")}.wav`;
-                                let s_name_video_in = `${encodeURIComponent(o_file.o_js_file.name)}`;
-                                o_ffmpeg.writeFile(
-                                    s_name_video_in,
-                                    new Uint8Array((await o_file.o_js_file.arrayBuffer()))
-                                ).then(async ()=>{
-                                    let s_command = `-i ${s_name_video_in} ${s_name_audio_out}`;
-                                    f_execute_ffmpeg_command(
-                                        s_command.split(" ")
-                                    ).then(
-                                        ()=>{
-
-
-                                            o_ffmpeg.readFile(s_name_audio_out).then(async function(a_n_u8){
-                                                o_file.o_audio_blob = new Blob([a_n_u8], {
-                                                    type: "audio/wav",
-                                                  });
-                                                o_file.a_n_u8__audio_wav = a_n_u8
     
-                                                let od = document.createElement("div");
-                                                od.id = 'ws' 
-                                                document.body.appendChild(od);
-                                                o_file.o_wavesurfer = o_wave_surfer.default.create({
-                                                    container: '#ws',
-                                                    waveColor: '#ffffff',
-                                                    progressColor: '#383351',
-                                                    // peaks: f_a_u_f32__from_wav_file(a_n_u8.buffer),
-                                                    // url: './ImperialMarch60.wav',
-                                                    // url: './concatted_1693091074101.mp4'
-                                                })
-                                                await o_file.o_wavesurfer.loadBlob(o_file.o_audio_blob);
-                                                o_file.s_audio_waveform_image_dataurl = o_file.o_wavesurfer.renderer.canvasWrapper.querySelector("canvas").toDataURL()
-                                                od.remove()
-                                                // o_wave_surfer.default.empty();
-                                                // o_wave_surfer.default.loadDecodedBuffer(a_n_u8.buffer);
-                                            });
-                                        }
-                                    );
-                                });
 
-                                
-                            }
-                            console.log(o_file.s_src_object_url)
-                            o_el_video.src = o_file.s_src_object_url
-                            o_el_video.load();
-                        }
-                        o_reader.readAsDataURL(o_file.o_js_file);
-                    }
-                    o_state.o_file = o_state.a_o_file[0];
-                    o_js__a_o_file?._f_render();
-                }
-            }
-        }
-    }
-
-    o_js__a_o_file = {
-        f_o_js: function(){
-            let o_js_spacer = {
-                class: "spacer length",
-                style: (function(){
-                    let n_px_target = document.querySelector(".o_scrollbar")?.clientWidth/2;
-                    // let n_ms = o_state.n_ms_per_px * n_px_target;
-                    return `flex:0 0 ${n_px_target}px`
-                })(), 
-            }
-            return {
-                class: "a_o_file length",       
-                a_o: [
-                    o_js_spacer,
-                    ...o_state.a_o_file.map(
-                        function(o_file){
-                            return {
-                                style: (function(){
-                                    return `flex:0 0 ${o_file.n_ms_length / o_state.n_ms_per_px}px`
-                                })(), 
-                                class: "o_file length bar_pole_pattern", 
-                                a_o:[
-                                    {
-                                        s_tag: "img", 
-                                        class: 'waveform disable_select',
-
-                                        src: o_file?.s_audio_waveform_image_dataurl,
-                                        // style: 'height: 100%;',
-                                        // id: `${btoa(o_file.o_js_file.name)}`
-                                    }
-                                ]
-                            }
-                        }
-                    ),
-                    ...o_state.a_n_ms_cut.map(
-                        function(n_ms_cut){
-                            return {
-                                style: (function(){
-                                    return `left:${n_ms_cut / o_state.n_ms_per_px + (document.querySelector(".o_scrollbar")?.clientWidth/2)}px`
-                                })(), 
-                                class: `n_ms_cut ${(o_state.n_ms_cut__closest_to_playhead == n_ms_cut)?'n_ms_cut__closest_to_playhead': ''}`
-                            }
-                        }
-                    ),
-                    ...o_state.a_o_video_cut.map(
-                        function(o_video_cut){
-                            return {
-                                style: (function(){
-                                    return [
-                                        `left:${o_video_cut.n_ms_start_absolute / o_state.n_ms_per_px + (document.querySelector(".o_scrollbar")?.clientWidth/2)}px`,
-                                        `width:${o_video_cut.n_ms_length / o_state.n_ms_per_px}px`,
-                                    ].join(";")
-                                })(), 
-                                class: [
-                                    `${(o_video_cut == o_state.o_video_cut__before_playhead)? 'before': ''}`, 
-                                    `${(o_video_cut == o_state.o_video_cut__current_playhead)? 'current': ''}`, 
-                                    `${(o_video_cut == o_state.o_video_cut__after_playhead)? 'after': ''}`,
-                                    `o_video_cut`
-                                ].join(" ")
-                            }
-                        }
-                    ),
-                    o_js_spacer 
-                ]
-                
-            }
-        }
-    }
     let f_n_ms_length_total = function(){
         return o_state.a_o_file.reduce(
             (n_acc, o_file)=>{return n_acc + o_file.n_ms_length},
             0
         )
     }
-    window.onmousedown = function(){
+    document.onmousedown = function(){
         o_state.o_trn_mouse_down.n_x = window.event.clientX;
         o_state.o_trn_mouse_down.n_y = window.event.clientY;
     }
-    window.onmouseup = function(){
+    document.onmouseup = function(){
         // console.log("mouseup")
         o_state.b_mouse_down_o_scrollbar = false
         o_state.b_prevent_on_seeking_call_because_current_time_change = false
@@ -594,7 +373,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
         }
         o_state.a_n_ms_cut = o_state.a_n_ms_cut.sort((n1,n2)=>n1-n2);
         f_update_a_o_video_cut();
-        o_js__a_o_file?._f_render();
+        o_o_js?.o_js__a_o_file?._f_render();
     }
     let f_cut = function(){
         o_state.a_n_ms_cut.push(
@@ -602,14 +381,16 @@ let f_recursive_f_set_n_ms_playhead = function(){
         );
         o_state.a_n_ms_cut = o_state.a_n_ms_cut.sort((n1,n2)=>n1-n2)
         f_update_a_o_video_cut();
-        o_js__a_o_file?._f_render();
+        o_o_js?.o_js__a_o_file?._f_render();
         console.log(o_state.a_o_video_cut.map(o=>o.o_file.o_js_file.name));
     }
     let a_n_keycode_keydown_last = [];
-    window.onkeyup = function(){
-        a_n_keycode_keydown_last = a_n_keycode_keydown_last.filter(n!=window.event.keyCode);
+    let f_keyup = function(){
+        a_n_keycode_keydown_last = a_n_keycode_keydown_last.filter(n=>n!=window.event.keyCode);
+
     }
-    window.onkeydown = function(){
+    let f_keydown = function(){
+
         a_n_keycode_keydown_last.push(window.event.keyCode);
         let f_n_keycode = (s_char)=>{return s_char.toUpperCase().charCodeAt(0)};
         if(window.event.keyCode == f_n_keycode('s')){
@@ -637,65 +418,33 @@ let f_recursive_f_set_n_ms_playhead = function(){
         if(window.event.keyCode == f_n_keycode('w')){
             f_jump_n_ms_cut__next()
         }
+        console.log('keydown')
         if(
-            !a_n_keycode_keydown_last.includes(f_n_keycode(' ')) 
-             && window.event.keyCode ==f_n_keycode(' ') 
+            window.event.keyCode == f_n_keycode(' ')
+            // !a_n_keycode_keydown_last.includes(f_n_keycode(' ')) 
+            //  && window.event.keyCode ==f_n_keycode(' ') 
         ){
             let o_el_video = document.querySelector("#o_file_video");
+            o_el_video.setAttribute("tabindex", 0);
             if(o_el_video.paused){
                 o_el_video.play()
             }else{
                 o_el_video.pause()
+    
             }
         }
+    }
+    document.onkeyup = function(){
+        f_keyup();
+    }
+    document.onkeydown = function(){
+        f_keydown();
     }
     
-    o_js__o_scrollbar = {
-        f_o_js: function(){
-            return {
-                class: "o_scrollbar disable_select", 
-                a_o: [ 
-                    o_js__a_o_file
-                ],
-                onmousedown: function(){
-                    o_state.b_prevent_on_seeking_call_because_current_time_change = true
-                    
-                    o_state.b_mouse_down_o_scrollbar = true
-                    o_state.o_trn_mouse_move = {
-                        n_x: window.event.clientX,
-                        n_y: window.event.clientY
-                    };
-                },
-                  
-                onmousemove: function(){
-
-                    let n_x = o_state.o_trn_mouse_move.n_x - window.event.clientX;
-                    let n_ms = n_x * o_state.n_ms_per_px;
-                    if(!o_state.b_mouse_down_o_scrollbar){
-                        o_state.o_trn_mouse_move = false;
-                    }
-                    if(o_state.b_mouse_down_o_scrollbar && o_state.o_trn_mouse_move){
-                        
-                        o_state.o_trn_mouse_move = {
-                            n_x: window.event.clientX,
-                            n_y: window.event.clientY
-                        };
-                        document.querySelector(".o_scrollbar").scrollLeft = document.querySelector(".o_scrollbar").scrollLeft + n_x;
-                    }
-                },
-                onscroll: function(){
-                    if(o_state?.b_mouse_down_o_scrollbar){
-                        // console.log("scroll triggered")
-                        let n_trn_x_nor = this.scrollLeft / (this.scrollWidth-this.clientWidth)
-                        f_update_o_state_n_ms_playhead(n_trn_x_nor * f_n_ms_length_total());
-                    }
-                }, 
-            }
-        }
-    }
+    
     let f_set_n_ms_per_px = function(n_ms_per_px){
         o_state.n_ms_per_px = n_ms_per_px;
-        o_js__a_o_file?._f_render();
+        o_o_js?.o_js__a_o_file?._f_render();
         f_update_o_state_n_ms_playhead(o_state.n_ms_playhead);
 
     }
@@ -848,23 +597,241 @@ let f_recursive_f_set_n_ms_playhead = function(){
         )
 
     }
-    window.o_js__o_scrollbar = o_js__o_scrollbar
+
     let o = {
         class: "position_relative d_flex h_100vh",
         a_o:[
             {
-                b_render: !window.chrome,
+                style: `display:${(window.chrome) ? "none":'block'}`,
                 innerText: "This app only works with chromium based browsers"
             },
-            o_js__video,
+            f_o_js_from_s_name(
+                'o_js__video', 
+                {
+                    f_o_jsh: function(){
+                        return {
+                            class: "video",
+                            a_o: [
+                                f_o_js_from_s_name(
+                                    'o_js__o_video_o_js_video_name',
+                                    {
+                                        f_o_jsh: function(){
+                                            return {
+                                                class: "o_video_o_js_video_name", 
+                                                a_o: [
+                                                    {
+                                                        innerText: o_state?.o_playhead_file?.o_file?.o_js_file?.name
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                ),
+                                {
+                                    class: "o_video_preview",
+                                    s_tag: "video", 
+                                    id: "o_file_video",
+                                    src: o_state?.o_file?.s_src_object_url,
+                                    // controls: "false",// those damn fcking controls, event listeners do not work on them, for example if you browse through the video keydown wont work after you clicked the range input slider 
+                                    onpointerdown: (o_e)=>{
+                                        console.log(o_e)
+                                        o_e.preventDefault();
+                                        o_e.stopPropagation();
+                                        return
+                                    },
+                                    onplay: function(){
+                                        o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_playhead)
+                                    },
+                                    onpause: function(){
+                                        window.cancelAnimationFrame(o_state.n_id_recursive_function_call)
+                                        o_state.b_play_cuts = false;
+                                    },
+                                    onended: function(){
+            
+                                        if(o_state.o_playhead_file.v_o_file__after){
+                                            f_update_o_state_n_ms_playhead(o_state.n_ms_playhead+(1000/30), true);
+                                            let o_el_video = document.querySelector("#o_file_video");
+                                            o_el_video.play()
+                                        }
+                                    }
+                                }, 
+                                f_o_js_from_s_name(
+                                    'o_js__current_video_global_time_range_slider', 
+                                    {
+                                        f_o_jsh: function(){
+                                            return {
+                                                style: `
+                                                position:absolute;
+                                                bottom: 0;
+                                                width: 100%;`,
+                                                id: "asdf",
+                                                s_tag: 'input', 
+                                                type: 'range', 
+                                                min: 0, 
+                                                max: 1, 
+                                                step: 0.01, 
+                                                value: (o_state?.o_playhead_file?.n_ms_playhead_relative / 1000) / document?.querySelector("video")?.duration, 
+                                                oninput: function(o_e){
+                                                    // this was the old onseeking but the global event listeners dont work on that fkcing video range input 
+                                                    if(o_state?.b_prevent_on_seeking_call_because_current_time_change){
+                                                        return false;
+                                                    }
+                                                    let n_nor = parseFloat(o_e.target.value)
+                                                    let o_vid = document.querySelector("video")
+                                                    if(o_vid){
+                                                        o_vid.currentTime = n_nor* o_vid.duration;
+    
+                                                        // console.log("onseeking called (will be also called when currentTime changes)")
+                                                        let n_ms_length_total = 0;
+                                                        for(let o_file of o_state?.a_o_file){
+                                                            if(o_file == o_state?.o_file){
+                                                                break;
+                                                            }
+                                                            n_ms_length_total += o_file.n_ms_length;
+                                                        }
+                                                        
+                                                        f_update_o_state_n_ms_playhead(n_ms_length_total+o_vid.currentTime*1000, false);
+                                                        
+                                                    }
+
+
+
+                                                }
+                                            }
+                                        }
+                                    }
+                                ),
+                            ]
+                        }
+                    }
+                }
+            ),
             {
                 class: "o_w_100", 
 
                 a_o: [
                     {
                         class: "o_playhead disable_select", 
-                    }, 
-                    o_js__o_scrollbar, 
+                    },
+                    f_o_js_from_s_name(
+                        'o_js__o_scrollbar', 
+                        {
+                            f_o_jsh: function(){
+                                return {
+                                    class: "o_scrollbar disable_select", 
+                                    a_o: [ 
+                                        f_o_js_from_s_name(
+                                            'o_js__a_o_file', 
+                                            {
+                                                f_o_jsh: function(){
+                                                    let o_js_spacer = {
+                                                        class: "spacer length",
+                                                        style: (function(){
+                                                            let n_px_target = document.querySelector(".o_scrollbar")?.clientWidth/2;
+                                                            // let n_ms = o_state.n_ms_per_px * n_px_target;
+                                                            return `flex:0 0 ${n_px_target}px`
+                                                        })(), 
+                                                    }
+                                                    return {
+                                                        class: "a_o_file length",       
+                                                        a_o: [
+                                                            o_js_spacer,
+                                                            ...o_state.a_o_file.map(
+                                                                function(o_file){
+                                                                    return {
+                                                                        style: (function(){
+                                                                            return `flex:0 0 ${o_file.n_ms_length / o_state.n_ms_per_px}px`
+                                                                        })(), 
+                                                                        class: "o_file length bar_pole_pattern", 
+                                                                        a_o:[
+                                                                            {
+                                                                                s_tag: "img", 
+                                                                                class: 'waveform disable_select',
+
+                                                                                src: o_file?.s_audio_waveform_image_dataurl,
+                                                                                // style: 'height: 100%;',
+                                                                                // id: `${btoa(o_file.o_js_file.name)}`
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                }
+                                                            ),
+                                                            ...o_state.a_n_ms_cut.map(
+                                                                function(n_ms_cut){
+                                                                    return {
+                                                                        style: (function(){
+                                                                            return `left:${n_ms_cut / o_state.n_ms_per_px + (document.querySelector(".o_scrollbar")?.clientWidth/2)}px`
+                                                                        })(), 
+                                                                        class: `n_ms_cut ${(o_state.n_ms_cut__closest_to_playhead == n_ms_cut)?'n_ms_cut__closest_to_playhead': ''}`
+                                                                    }
+                                                                }
+                                                            ),
+                                                            ...o_state.a_o_video_cut.map(
+                                                                function(o_video_cut){
+                                                                    return {
+                                                                        style: (function(){
+                                                                            return [
+                                                                                `left:${o_video_cut.n_ms_start_absolute / o_state.n_ms_per_px + (document.querySelector(".o_scrollbar")?.clientWidth/2)}px`,
+                                                                                `width:${o_video_cut.n_ms_length / o_state.n_ms_per_px}px`,
+                                                                            ].join(";")
+                                                                        })(), 
+                                                                        class: [
+                                                                            `${(o_video_cut == o_state.o_video_cut__before_playhead)? 'before': ''}`, 
+                                                                            `${(o_video_cut == o_state.o_video_cut__current_playhead)? 'current': ''}`, 
+                                                                            `${(o_video_cut == o_state.o_video_cut__after_playhead)? 'after': ''}`,
+                                                                            `o_video_cut`
+                                                                        ].join(" ")
+                                                                    }
+                                                                }
+                                                            ),
+                                                            o_js_spacer 
+                                                        ]
+                                                        
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    ],
+                                    onmousedown: function(){
+                                        o_state.b_prevent_on_seeking_call_because_current_time_change = true
+                                        
+                                        o_state.b_mouse_down_o_scrollbar = true
+                                        // document.querySelector("video")?.pause();
+
+                                        o_state.o_trn_mouse_move = {
+                                            n_x: window.event.clientX,
+                                            n_y: window.event.clientY
+                                        };
+                                    },
+                                      
+                                    onmousemove: function(){
+                    
+                                        let n_x = o_state.o_trn_mouse_move.n_x - window.event.clientX;
+                                        let n_ms = n_x * o_state.n_ms_per_px;
+                                        if(!o_state.b_mouse_down_o_scrollbar){
+                                            o_state.o_trn_mouse_move = false;
+                                            
+                                        }
+                                        if(o_state.b_mouse_down_o_scrollbar && o_state.o_trn_mouse_move){
+                                            
+                                            o_state.o_trn_mouse_move = {
+                                                n_x: window.event.clientX,
+                                                n_y: window.event.clientY
+                                            };
+                                            document.querySelector(".o_scrollbar").scrollLeft = document.querySelector(".o_scrollbar").scrollLeft + n_x;
+                                        }
+                                    },
+                                    onscroll: function(){
+                                        if(o_state?.b_mouse_down_o_scrollbar){
+                                            // console.log("scroll triggered")
+                                            let n_trn_x_nor = this.scrollLeft / (this.scrollWidth-this.clientWidth)
+                                            f_update_o_state_n_ms_playhead(n_trn_x_nor * f_n_ms_length_total());
+                                        }
+                                    }, 
+                                }
+                            }
+                        }
+                    ) 
                 ]
             },
             {
@@ -951,203 +918,116 @@ let f_recursive_f_set_n_ms_playhead = function(){
                             f_render_and_download();
                         }
                     },
-                    // {
-                    //     s_tag: "button", 
-                    //     class: "clickable",
-                    //     innerText: "merge cuts (.mp4)", 
-                    //     onclick: async function(){
-                    //         f_render_and_download();
-
-                    //         if(o_state.a_o_video_cut.length == 0){
-                    //             alert("cannot export any file since there are no video cuts, be shure to make at least two cuts to cut out a section of the video")
-                    //         }
-                    //         let n_ts = new Date().getTime()
-                    //         let s_file_name__default = `concatted_${n_ts}.mp4`
-                    //         let a_s_part = o_state?.o_playhead_file?.o_file?.o_js_file?.name.split(".");
-                    //         let s_ext = a_s_part.pop()
-                    //         s_file_name__default = `${a_s_part.join('.')}_cut.${s_ext}`
-
-                    //         let s_name_file_exported = encodeURIComponent(prompt("file name:", s_file_name__default));
-
-                    //         for(let o_file of o_state.a_o_file){
-                    //             await o_ffmpeg.writeFile(
-                    //                 encodeURIComponent(o_file.o_js_file.name),
-                    //                 new Uint8Array((await o_file.o_js_file.arrayBuffer()))
-                    //             );
-                    //         }
-                    //         let s_name_file_list = 'list.txt'
-                    //         let utf8Encode = new TextEncoder();
-                    //         await o_ffmpeg.writeFile(s_name_file_list, utf8Encode.encode(
-                    //             o_state.a_o_video_cut.map(
-                    //                 (o_video_cut)=>{
-                    //                     return `file '${f_s_name_file__from_o_video_cut(o_video_cut)}'`
-                    //                 }
-                    //             ).join('\n')
-                    //         ));
-
-                    //         let a_s_command = o_state.a_o_video_cut.map(
-                    //             (o_video_cut, n_idx_o_video_cut)=>{
-                    //                 // return    `ffmpeg -i ${o_video_cut.o_file.o_js_file.name} -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -c:v copy -c:a copy ${o_video_cut.n_id_video}_${n_idx_o_video_cut}.mp4`
-                    //                 // return `mencoder -ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -endpos ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -oac pcm -ovc copy ${o_video_cut.o_file.o_js_file.name} -o ${s_file_name}`
-                    //                 // return    `-ss ${f_s_hms__from_n_ms(o_video_cut.n_ms_start)} -t ${f_s_hms__from_n_ms(o_video_cut.n_ms_length)} -i '${o_video_cut.o_file.o_js_file.name}' -c copy ${f_s_name_file__from_o_video_cut(o_video_cut)}`   
-                    //                 return [
-                    //                     `-ss`,
-                    //                     f_s_hms__from_n_ms(o_video_cut.n_ms_start),
-                    //                     `-t`,
-                    //                     f_s_hms__from_n_ms(o_video_cut.n_ms_length),//duration
-                    //                     '-i',
-                    //                     `${encodeURIComponent(o_video_cut.o_file.o_js_file.name)}`,
-                    //                     `-c`,
-                    //                     `copy`,
-                    //                     f_s_name_file__from_o_video_cut(o_video_cut)
-                    //                 ].join(" ")
-                    //             }
-                    //         )
-
-                    //         for(let s_command of a_s_command){
-                    //             let o_res = await f_execute_ffmpeg_command(s_command.split(' '))
-                    //             console.log(o_res)
-                    //         }
-                    //         console.log('current o_ffmpeg virutal dir (.): ')
-                    //         console.log(await o_ffmpeg.listDir('.'))
-
-                    //         await f_execute_ffmpeg_command(
-                    //             `-f concat -i ${s_name_file_list} -c copy ${s_name_file_exported}`.split(' ')
-                    //         );
-                    //         const a_n_u8_file_exported = await o_ffmpeg.readFile(s_name_file_exported);
-                            
-
-                    //         f_download_file(
-                    //             decodeURIComponent(s_name_file_exported), 
-                    //             a_n_u8_file_exported.buffer, 
-                    //             'video/mp4'
-                    //         )
-
-                    //     }
-                    // },
-                    // {
-                    //     s_tag: "button", 
-                    //     class: "clickable",
-                    //     innerText: "merge mp4 files (export .mp4)", 
-                    //     onclick: async function(){
-                    //         if(o_state.a_o_file.length == 0){
-                    //             alert("cannot export any file since there are no files loaded")
-                    //         }
-                    //         let n_ts = new Date().getTime()
-                    //         let s_file_name__default = `concatted_${n_ts}.mp4`
-
-                    //         let s_name_file_exported = f_s_without_spaces(prompt("file name:", s_file_name__default));
+                    f_o_js_from_s_name(
+                        'o_js__filepicker', 
+                        {
+                            f_o_jsh: function(){
+                                return {
+                                    s_tag: "button", 
+                                    class: "clickable",
+                                    innerText: "add file(s) +", 
+                                    onclick: async function(){
+                    
+                                        let a_o_file_handle = await window.showOpenFilePicker(
+                                            {
+                                                types: [
+                                                  {
+                                                    description: "videos",
+                                                    accept: {
+                                                      "video/*": [".mp4" ],
+                                                    },
+                                                  },
+                                                ],
+                                                excludeAcceptAllOption: true,
+                                                multiple: true,
+                                              }
+                                        );
+                                        for(let o_file_handle of a_o_file_handle){
+                    
+                                            let o_file = new O_file(await o_file_handle.getFile());
+                                            o_state.a_o_file.push(o_file);
+                                            
+                                            let s_video_src_object_url = URL.createObjectURL(o_file.o_js_file);
+                                            var o_reader = new FileReader();
+                                            o_reader.onload = function() {
+                                                o_file.b_loaded = true;
+                                                o_file.s_src_object_url = s_video_src_object_url;
+                                                
+                                                o_o_js?.o_js__video._f_render();
+                                                // let o_el_video = document.querySelector("#o_file_video");
+                                                let o_el_video = document.createElement("video");
+                                                // document.body.appendChild(o_el_video)
+                                                // o_el_video.controls = true;
+                                                o_el_video.onloadeddata = async function(){
+                                                    o_file.n_ms_length = o_el_video.duration * 1000;   
+                                                    o_file.n_scl_x__px = o_el_video.videoWidth   
+                                                    o_file.n_scl_y__px = o_el_video.videoHeight
+                                                    f_update_o_state_n_ms_playhead(o_state.n_ms_playhead);
+                                                    o_o_js?.o_js__video?._f_render();
+                                                    let s_name_audio_out = `${encodeURIComponent(o_file.o_js_file.name).replaceAll(".", "_")}.wav`;
+                                                    let s_name_video_in = `${encodeURIComponent(o_file.o_js_file.name)}`;
+                                                    o_ffmpeg.writeFile(
+                                                        s_name_video_in,
+                                                        new Uint8Array((await o_file.o_js_file.arrayBuffer()))
+                                                    ).then(async ()=>{
+                                                        let s_command = `-i ${s_name_video_in} ${s_name_audio_out}`;
+                                                        f_execute_ffmpeg_command(
+                                                            s_command.split(" ")
+                                                        ).then(
+                                                            ()=>{
+                    
+                    
+                                                                o_ffmpeg.readFile(s_name_audio_out).then(async function(a_n_u8){
+                                                                    o_file.o_audio_blob = new Blob([a_n_u8], {
+                                                                        type: "audio/wav",
+                                                                      });
+                                                                    o_file.a_n_u8__audio_wav = a_n_u8
                         
-                    //         let n_scl_x__px__max = 0;
-                    //         let n_scl_y__px__max = 0;
-
-                    //         for(let o_file of o_state.a_o_file){
-                    //             if(o_file.n_scl_x__px > n_scl_x__px__max){
-                    //                 n_scl_x__px__max = o_file.n_scl_x__px
-                    //             }
-                    //             if(o_file.n_scl_y__px > n_scl_y__px__max){
-                    //                 n_scl_y__px__max = o_file.n_scl_y__px
-                    //             }
-                    //         }
-                    //         await Promise.all(
-                    //             o_state.a_o_file.map(
-                    //                 async o_file => {
-                    //                     return o_ffmpeg.writeFile(
-                    //                         f_s_without_spaces(o_file.o_js_file.name),
-                    //                         new Uint8Array((await o_file.o_js_file.arrayBuffer()))
-                    //                     );
-                    //                 }
-                    //             )
-                    //         )
-
-                    //         await Promise.all(
-                    //             o_state.a_o_file.map(
-                    //                 async o_file => {
-                    //                     let s_command = `-i ${f_s_without_spaces(o_file.o_js_file.name)} -vf scale=${n_scl_x__px__max}:${n_scl_y__px__max}:force_original_aspect_ratio=decrease,pad=${n_scl_x__px__max}:${n_scl_y__px__max}:-1:-1:color=black ${f_s_without_spaces__out(o_file.o_js_file.name)}`;
-                    //                     return f_execute_ffmpeg_command(
-                    //                         s_command.split(" ")
-                    //                     );
-                    //                 }
-                    //             )
-                    //         )
-
-                    //         // for(let o_file of o_state.a_o_file){
-                    //         //     let s_command = `-i ${f_s_without_spaces(o_file.o_js_file.name)} -vf scale=${n_scl_x__px__max}:${n_scl_y__px__max}:force_original_aspect_ratio=decrease,pad=${n_scl_x__px__max}:${n_scl_y__px__max}:-1:-1:color=black ${f_s_without_spaces__out(o_file.o_js_file.name)}`;
-                    //         //     // `-i earth.mp4 -vf "scale=2000:1000:force_original_aspect_ratio=decrease,pad=2000:1000:-1:-1:color=red" vi.mp4`
-
-                    //         //     await f_execute_ffmpeg_command(
-                    //         //         s_command.split(" ")
-                    //         //     );
-                    //         // }
-                    //         // console.log('current o_ffmpeg virutal dir (.): ')
-                    //         // console.log(await o_ffmpeg.listDir('.'))
-                    //         let s_name_file_list = 'list.txt'
-                    //         let utf8Encode = new TextEncoder();
-                    //         await o_ffmpeg.writeFile(s_name_file_list, utf8Encode.encode(
-                    //             o_state.a_o_file.map(
-                    //                 (o_file)=>{
-                    //                     return `file '${f_s_without_spaces__out(o_file.o_js_file.name)}'`
-                    //                 }
-                    //             ).join('\n')
-                    //         ));
-
-
-
-                    //         await f_execute_ffmpeg_command(
-                    //             `-f concat -i ${s_name_file_list} -c copy ${s_name_file_exported}`.split(' ')
-                    //         );
-                    //         const a_n_u8_file_exported = await o_ffmpeg.readFile(s_name_file_exported);
-
-                    //         f_download_file(
-                    //             s_name_file_exported, 
-                    //             a_n_u8_file_exported.buffer, 
-                    //             'video/mp4'
-                    //         )
-                    //     }
-                    // },
-                    // {
-                    //     s_tag: "button", 
-                    //     class: "clickable",
-                    //     innerText: "merge mp4 files (export .sh)", 
-                    //     onclick: async function(){
-                    //         let n_ts = new Date().getTime()
-
-                    //         let s_name_list = `list_${n_ts}.txt`
-                    //         f_download_file(
-                    //             s_name_list,
-                    //             `
-                    //             ${o_state.a_o_file.map(
-                    //                 (o_file)=>{
-                    //                     return `file '${o_file.o_js_file.name}'`
-                    //                 }
-                    //             ).join("\n")}
-                    //             `
-                    //         )
-                    //         let s_file_name__default = `mp4_files_merged_${n_ts}.mp4`
-                    //         let s_file_name = prompt("file name:", s_file_name__default);
-                    //         let s_name_file_render = `merge_mp4_files_${n_ts}.sh` 
-                    //         f_download_file(
-                    //             s_name_file_render, 
-                    //             `
-                    //             ${(()=>{
-                    //                 return `ffmpeg -f concat -i ${s_name_list} -c copy ${s_file_name}`
-                    //             })()}
-                    //             rm ${s_name_list}
-                    //             rm ${s_name_file_render}
-
-                    //             `
-                    //         )
-                    //     }
-                    // },
-                    o_js__filepicker
+                                                                    let od = document.createElement("div");
+                                                                    od.id = 'ws' 
+                                                                    document.body.appendChild(od);
+                                                                    o_file.o_wavesurfer = o_wave_surfer.default.create({
+                                                                        container: '#ws',
+                                                                        waveColor: '#ffffff',
+                                                                        progressColor: '#383351',
+                                                                        // peaks: f_a_u_f32__from_wav_file(a_n_u8.buffer),
+                                                                        // url: './ImperialMarch60.wav',
+                                                                        // url: './concatted_1693091074101.mp4'
+                                                                    })
+                                                                    await o_file.o_wavesurfer.loadBlob(o_file.o_audio_blob);
+                                                                    o_file.s_audio_waveform_image_dataurl = o_file.o_wavesurfer.renderer.canvasWrapper.querySelector("canvas").toDataURL()
+                                                                    od.remove()
+                                                                    // o_wave_surfer.default.empty();
+                                                                    // o_wave_surfer.default.loadDecodedBuffer(a_n_u8.buffer);
+                                                                });
+                                                            }
+                                                        );
+                                                    });
+                    
+                                                    
+                                                }
+                                                console.log(o_file.s_src_object_url)
+                                                o_el_video.src = o_file.s_src_object_url
+                                                o_el_video.load();
+                                            }
+                                            o_reader.readAsDataURL(o_file.o_js_file);
+                                        }
+                                        o_state.o_file = o_state.a_o_file[0];
+                                        o_o_js?.o_js__a_o_file?._f_render();
+                                    }
+                                }
+                            }
+                        }
+                    )
                 ]
             }
         ], 
     };
 
-    var o_html = f_o_html_from_o_js(o);
+    var o_html = await f_o_html__and_make_renderable(o);
     document.body.className = 'theme_dark'
     document.body.appendChild(o_html)
+
 
 
     f_add_css('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
@@ -1309,10 +1189,30 @@ let f_recursive_f_set_n_ms_playhead = function(){
                 box-sizing:border-box;
             },
             .disable_select {
-                -webkit-user-select: none;  
-                -moz-user-select: none;    
-                -ms-user-select: none;      
+                user-drag: none;
                 user-select: none;
+                -moz-user-select: none;
+                -webkit-user-drag: none;
+                -webkit-user-select: none;
+                -ms-user-select: none;
+            }
+
+            .o_scrollbar.disable_select > * {
+                user-drag: none;
+                user-select: none;
+                -moz-user-select: none;
+                -webkit-user-drag: none;
+                -webkit-user-select: none;
+                -ms-user-select: none;
+            }
+            
+            img {
+                user-drag: none;
+                user-select: none;
+                -moz-user-select: none;
+                -webkit-user-drag: none;
+                -webkit-user-select: none;
+                -ms-user-select: none;
             }
             .video{
                 position:relative;
@@ -1363,6 +1263,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
             .o_scrollbar {
                 position: relative;
                 overflow-x: scroll;
+                overflow-y: hidden;
                 -webkit-user-select: none;
                 -moz-user-select: none;
                 -ms-user-select: none;
