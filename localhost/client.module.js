@@ -83,7 +83,8 @@ let o_state = {
     a_n_ms_cut: [], 
     n_ms_cut__closest_to_playhead: 0, 
     b_prevent_on_seeking_call_because_current_time_change : false,
-    n_id_recursive_function_call: 0, 
+    n_id_recursive_function_call: 0,
+    v_o_vid: null, 
 };
 window.o_state = o_state
 
@@ -153,12 +154,17 @@ let f_s_version_suffix = function(s_version_with_dot){
     return `v_${s_version_without_dot}`;
 }
 let s_version = `0.1`;
-
+let s_id_video = `o_file_video_${crypto.randomUUID()}`;
+let f_v_o_vid = ()=>{return document.querySelector(`#${s_id_video}`)};
 let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time = true){
 
+    console.log(`f_update_o_state_n_ms_playhead called with args`)
+    console.log(arguments)
+
+    o_state.v_o_vid = f_v_o_vid();
     o_state.o_playhead_file = f_o_playhead_file(n_ms);
-    o_o_js?.o_js__o_video_o_js_video_name._f_render();
     o_state.n_ms_playhead = n_ms;
+
     let n_ms_cut__closest_to_playhead_last = o_state.n_ms_cut__closest_to_playhead;
     let n_ms_delta_min = Math.abs(o_state.n_ms_playhead - o_state.a_n_ms_cut?.[0]);
     o_state.n_ms_cut__closest_to_playhead = o_state.a_n_ms_cut?.[0];
@@ -177,7 +183,10 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
         o_o_js?.o_js__video?._f_render();
     }
     if(b_update_video_current_time){
-        document.querySelector("video").currentTime = o_state.o_playhead_file.n_ms_playhead_relative / 1000;
+        if(o_state.v_o_vid){
+            o_state.v_o_vid.currentTime = o_state.o_playhead_file.n_ms_playhead_relative / 1000;
+            console.log(`updated currentTime: ${o_state.v_o_vid.currentTime}`)
+        }
     }else{
         let o_el_scrollbar = document.querySelector(".o_scrollbar");
         let n_ms_length_total = f_n_ms_length_total()
@@ -188,6 +197,8 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
         o_el_scrollbar?.scrollTo(n_x_px,0);
 
     }
+    o_state.o_playhead_file.n_ms_playhead_relative = o_state.v_o_vid.currentTime*1000;
+
 
     o_state.o_video_cut__before_playhead = o_state.a_o_video_cut.filter(
         o=> o.n_ms_start_absolute + o.n_ms_length <= o_state.n_ms_playhead 
@@ -203,6 +214,7 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
 
     o_o_js?.o_js__a_o_file?._f_render()
     o_o_js?.o_js__current_video_global_time_range_slider?._f_update();
+    o_o_js?.o_js__current_video_status?._f_update();
 
 }
 
@@ -214,8 +226,8 @@ let f_n_ms_video_current_time_absolute = function(){
         }
         n_ms_length_total += o_file.n_ms_length;
     }
-    let o_el_video = document.querySelector('.o_video_preview')
-    return n_ms_length_total + o_el_video.currentTime*1000 
+
+    return n_ms_length_total + o_state?.o_playhead_file?.n_ms_playhead_relative 
 
 }
 
@@ -226,6 +238,8 @@ let f_recursive_f_set_n_ms_playhead = function(){
     let n_ms_video_current_time_absolute = f_n_ms_video_current_time_absolute();
     let n_ms_playhead = n_ms_video_current_time_absolute;
 
+    // console.log(`f_recursive_f_set_n_ms_playhead called with args`)
+    // console.log(arguments)
 
     if(o_state.b_play_cuts){
         // console.log('o_state.o_video_cut__current_playhead')
@@ -241,9 +255,10 @@ let f_recursive_f_set_n_ms_playhead = function(){
             return 
         }
         if(!o_state.o_video_cut__current_playhead && !o_state.o_video_cut__after_playhead){
-            document.querySelector("video")?.pause();
+            o_state.v_o_vid?.pause();
         }
     }
+
     f_update_o_state_n_ms_playhead(
         n_ms_playhead,
         false
@@ -258,6 +273,15 @@ let f_recursive_f_set_n_ms_playhead = function(){
             (n_acc, o_file)=>{return n_acc + o_file.n_ms_length},
             0
         )
+    }
+    document.onwheel = function(o_e){
+
+        if(o_state.v_o_vid){
+            let n_nor = o_e.deltaY / 100;
+            let n_new = o_state.v_o_vid.playbackRate + (n_nor/10);
+            o_state.v_o_vid.playbackRate = Math.max(0.1, n_new);
+            o_o_js?.o_js__current_video_status?._f_update()
+        }
     }
     document.onmousedown = function(){
         o_state.o_trn_mouse_down.n_x = window.event.clientX;
@@ -424,13 +448,11 @@ let f_recursive_f_set_n_ms_playhead = function(){
             // !a_n_keycode_keydown_last.includes(f_n_keycode(' ')) 
             //  && window.event.keyCode ==f_n_keycode(' ') 
         ){
-            let o_el_video = document.querySelector("#o_file_video");
-            o_el_video.setAttribute("tabindex", 0);
-            if(o_el_video.paused){
-                o_el_video.play()
+
+            if(o_state.v_o_vid?.paused){
+                o_state.v_o_vid?.play()
             }else{
-                o_el_video.pause()
-    
+                o_state.v_o_vid?.pause()
             }
         }
     }
@@ -612,25 +634,10 @@ let f_recursive_f_set_n_ms_playhead = function(){
                         return {
                             class: "video",
                             a_o: [
-                                f_o_js_from_s_name(
-                                    'o_js__o_video_o_js_video_name',
-                                    {
-                                        f_o_jsh: function(){
-                                            return {
-                                                class: "o_video_o_js_video_name", 
-                                                a_o: [
-                                                    {
-                                                        innerText: o_state?.o_playhead_file?.o_file?.o_js_file?.name
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    }
-                                ),
                                 {
                                     class: "o_video_preview",
                                     s_tag: "video", 
-                                    id: "o_file_video",
+                                    id: s_id_video,
                                     src: o_state?.o_file?.s_src_object_url,
                                     // controls: "false",// those damn fcking controls, event listeners do not work on them, for example if you browse through the video keydown wont work after you clicked the range input slider 
                                     onpointerdown: (o_e)=>{
@@ -650,16 +657,40 @@ let f_recursive_f_set_n_ms_playhead = function(){
             
                                         if(o_state.o_playhead_file.v_o_file__after){
                                             f_update_o_state_n_ms_playhead(o_state.n_ms_playhead+(1000/30), true);
-                                            let o_el_video = document.querySelector("#o_file_video");
-                                            o_el_video.play()
+                                            o_state.v_o_vid?.play()
                                         }
                                     }
                                 }, 
                                 f_o_js_from_s_name(
-                                    'o_js__current_video_global_time_range_slider', 
+                                    'o_js__current_video_status', 
                                     {
                                         f_o_jsh: function(){
                                             return {
+                                                style: `
+                                                position: absolute;
+                                                top: 0;
+                                                right: 0;
+                                                font-size: 10px;
+                                                padding: 0.3rem;`,
+                                                innerText: `
+                                                ${o_state?.o_playhead_file?.o_file?.o_js_file?.name}
+                                                speed: ${o_state?.v_o_vid?.playbackRate}
+                                                (assuming 24fps)
+                                                frame: ${parseInt(
+                                                    ((o_state?.o_playhead_file?.n_ms_playhead_relative)/1000)*24
+                                                )}
+                                                `
+                                            }
+                                        }
+                                    }
+                                ),
+                                f_o_js_from_s_name(
+                                    'o_js__current_video_global_time_range_slider', 
+                                    {
+                                        f_o_jsh: function(){
+                                            console.log('o_js__current_video_global_time_range_slider render')
+                                            return {
+                                                class: "slider_big_horizontal",
                                                 style: `
                                                 position:absolute;
                                                 bottom: 0;
@@ -670,16 +701,17 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                                 min: 0, 
                                                 max: 1, 
                                                 step: 0.01, 
-                                                value: (o_state?.o_playhead_file?.n_ms_playhead_relative / 1000) / document?.querySelector("video")?.duration, 
+                                                value: 
+                                                o_state?.o_playhead_file?.n_ms_playhead_relative / o_state?.o_playhead_file?.o_file?.n_ms_length, 
                                                 oninput: function(o_e){
                                                     // this was the old onseeking but the global event listeners dont work on that fkcing video range input 
                                                     if(o_state?.b_prevent_on_seeking_call_because_current_time_change){
                                                         return false;
                                                     }
                                                     let n_nor = parseFloat(o_e.target.value)
-                                                    let o_vid = document.querySelector("video")
-                                                    if(o_vid){
-                                                        o_vid.currentTime = n_nor* o_vid.duration;
+
+                                                    if(o_state?.v_o_vid){
+                                                        o_state.v_o_vid.currentTime = n_nor* o_state?.v_o_vid.duration;
     
                                                         // console.log("onseeking called (will be also called when currentTime changes)")
                                                         let n_ms_length_total = 0;
@@ -690,7 +722,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                                             n_ms_length_total += o_file.n_ms_length;
                                                         }
                                                         
-                                                        f_update_o_state_n_ms_playhead(n_ms_length_total+o_vid.currentTime*1000, false);
+                                                        f_update_o_state_n_ms_playhead(n_ms_length_total+o_state?.v_o_vid.currentTime*1000, false);
                                                         
                                                     }
 
@@ -923,7 +955,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                         {
                             f_o_jsh: function(){
                                 return {
-                                    s_tag: "button", 
+                                    s_tag: "div", 
                                     class: "clickable",
                                     innerText: "add file(s) +", 
                                     onclick: async function(){
@@ -1327,6 +1359,47 @@ let f_recursive_f_set_n_ms_playhead = function(){
                 flex-direction: row;
                 width: 100%;
               }
+
+              /* Container for the slider */
+                .slider_big_horizontal-container {
+                width: 100%; /* Full width of the container */
+                padding: 10px; /* Some padding around the slider */
+                }
+
+                /* Styling for the slider */
+                .slider_big_horizontal {
+                -webkit-appearance: none; /* Override default appearance */
+                appearance: none;
+                width: 100%; /* Full width of the container */
+                height: 30px; /* Make it big for easy drag */
+                background: #ddd; /* Background of the slider */
+                outline: none; /* Remove the outline */
+                opacity: 0.7; /* Slightly transparent */
+                transition: opacity 0.2s; /* Smooth transition for hover effect */
+                }
+
+                /* Hover effect for the slider */
+                .slider_big_horizontal:hover {
+                opacity: 1; /* Fully opaque on hover */
+                }
+
+                /* Styling for the slider thumb (the draggable part) */
+                .slider_big_horizontal::-webkit-slider-thumb {
+                -webkit-appearance: none; /* Override default appearance */
+                appearance: none;
+                width: 50px; /* Width of the thumb */
+                height: 50px; /* Height of the thumb, making it big */
+                background: #4CAF50; /* Background color of the thumb */
+                cursor: pointer; /* Cursor changes to pointer when hovering over the thumb */
+                }
+
+                .slider_big_horizontal::-moz-range-thumb {
+                width: 50px; /* Width of the thumb for Mozilla */
+                height: 50px; /* Height of the thumb for Mozilla */
+                background: #4CAF50; /* Background color of the thumb for Mozilla */
+                cursor: pointer; /* Cursor pointer for Mozilla */
+                }
+
     `;
     // let s_css_prefixed = f_s_css_prefixed(
     //     s_css,
