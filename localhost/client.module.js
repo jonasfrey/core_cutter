@@ -28,8 +28,11 @@ let f_execute_ffmpeg_command = async function(a_s_command){
 const baseURL = window.location.origin
 await o_ffmpeg.load({
     // coreURL: `./ffmpeg-core.js`,
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+    // wget https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js
+    // wget https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.min.js
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.min.js`, 'text/javascript'),
     // wasmURL: `./ffmpeg-core.wasm`,
+    // wget https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm
     wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
 });
 
@@ -84,6 +87,11 @@ let o_state = {
     n_ms_cut__closest_to_playhead: 0, 
     b_prevent_on_seeking_call_because_current_time_change : false,
     n_id_recursive_function_call: 0,
+    n_ms_max_diff_recursive_function_call: 1000/60,
+    n_ms_wpn_last_recursive_function_call: window.performance.now(),
+    n_ms_max_diff_update_video_currentTime: 1000/6,
+    n_ms_wpn_last_update_video_currentTime: window.performance.now(),
+
     v_o_vid: null, 
 };
 window.o_state = o_state
@@ -159,7 +167,7 @@ let f_v_o_vid = ()=>{return document.querySelector(`#${s_id_video}`)};
 let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time = true){
 
     console.log(`f_update_o_state_n_ms_playhead called with args`)
-    console.log(arguments)
+    // console.log(arguments)
 
     o_state.v_o_vid = f_v_o_vid();
     o_state.o_playhead_file = f_o_playhead_file(n_ms);
@@ -183,9 +191,13 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
         o_o_js?.o_js__video?._f_render();
     }
     if(b_update_video_current_time){
-        if(o_state.v_o_vid){
-            o_state.v_o_vid.currentTime = o_state.o_playhead_file.n_ms_playhead_relative / 1000;
-            console.log(`updated currentTime: ${o_state.v_o_vid.currentTime}`)
+        let n_ms = o_state.n_ms_wpn_last_update_video_currentTime - window.performance.now();
+        if(Math.abs(n_ms) > o_state.n_ms_max_diff_update_video_currentTime){
+            if(o_state.v_o_vid){
+                o_state.v_o_vid.currentTime = o_state.o_playhead_file.n_ms_playhead_relative / 1000;
+                o_state.n_ms_wpn_last_update_video_currentTime = window.performance.now();
+                console.log(`updated currentTime: ${o_state.v_o_vid.currentTime}`)
+            }
         }
     }else{
         let o_el_scrollbar = document.querySelector(".o_scrollbar");
@@ -197,6 +209,7 @@ let f_update_o_state_n_ms_playhead = function(n_ms, b_update_video_current_time 
         o_el_scrollbar?.scrollTo(n_x_px,0);
 
     }
+
     o_state.o_playhead_file.n_ms_playhead_relative = o_state.v_o_vid.currentTime*1000;
 
 
@@ -234,35 +247,40 @@ let f_n_ms_video_current_time_absolute = function(){
 let f_recursive_f_set_n_ms_playhead = function(){
     
     o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_playhead)
+    let n_ms_diff = window.performance.now()-o_state.n_ms_wpn_last_recursive_function_call;
 
-    let n_ms_video_current_time_absolute = f_n_ms_video_current_time_absolute();
-    let n_ms_playhead = n_ms_video_current_time_absolute;
-
-    // console.log(`f_recursive_f_set_n_ms_playhead called with args`)
-    // console.log(arguments)
-
-    if(o_state.b_play_cuts){
-        // console.log('o_state.o_video_cut__current_playhead')
-        // console.log(o_state.o_video_cut__current_playhead)
-        // console.log('o_state.o_video_cut__after_playhead')
-        // console.log(o_state.o_video_cut__after_playhead)
-        if(!o_state.o_video_cut__current_playhead && o_state.o_video_cut__after_playhead){
-            //n_ms_playhead = o_state.o_video_cut__after_playhead.n_ms_start_absolute
-            f_update_o_state_n_ms_playhead(
-                o_state.o_video_cut__after_playhead.n_ms_start_absolute+1,
-                true
-            );
-            return 
+    if(Math.abs(n_ms_diff > o_state.n_ms_max_diff_recursive_function_call)){
+        let n_ms_video_current_time_absolute = f_n_ms_video_current_time_absolute();
+        let n_ms_playhead = n_ms_video_current_time_absolute;
+    
+        // console.log(`f_recursive_f_set_n_ms_playhead called with args`)
+        // console.log(arguments)
+    
+        if(o_state.b_play_cuts){
+            // console.log('o_state.o_video_cut__current_playhead')
+            // console.log(o_state.o_video_cut__current_playhead)
+            // console.log('o_state.o_video_cut__after_playhead')
+            // console.log(o_state.o_video_cut__after_playhead)
+            if(!o_state.o_video_cut__current_playhead && o_state.o_video_cut__after_playhead){
+                //n_ms_playhead = o_state.o_video_cut__after_playhead.n_ms_start_absolute
+                f_update_o_state_n_ms_playhead(
+                    o_state.o_video_cut__after_playhead.n_ms_start_absolute+1,
+                    true
+                );
+                return 
+            }
+            if(!o_state.o_video_cut__current_playhead && !o_state.o_video_cut__after_playhead){
+                o_state.v_o_vid?.pause();
+            }
         }
-        if(!o_state.o_video_cut__current_playhead && !o_state.o_video_cut__after_playhead){
-            o_state.v_o_vid?.pause();
-        }
+    
+        f_update_o_state_n_ms_playhead(
+            n_ms_playhead,
+            false
+        );
+        o_state.n_ms_wpn_last_recursive_function_call = window.performance.now()
+
     }
-
-    f_update_o_state_n_ms_playhead(
-        n_ms_playhead,
-        false
-    );
     
 }
 
@@ -273,6 +291,21 @@ let f_recursive_f_set_n_ms_playhead = function(){
             (n_acc, o_file)=>{return n_acc + o_file.n_ms_length},
             0
         )
+    }
+    document.onmousemove = function(o_e){
+        let n_x = o_state.o_trn_mouse_move.n_x - o_e.clientX;
+        let n_ms = n_x * o_state.n_ms_per_px;
+        if(!o_state.b_mouse_down_o_scrollbar){
+            o_state.o_trn_mouse_move = false;
+        }
+        if(o_state.b_mouse_down_o_scrollbar && o_state.o_trn_mouse_move){
+            
+            o_state.o_trn_mouse_move = {
+                n_x: o_e.clientX,
+                n_y: o_e.clientY
+            };
+            document.querySelector(".o_scrollbar").scrollLeft = document.querySelector(".o_scrollbar").scrollLeft + n_x;
+        }
     }
     document.onwheel = function(o_e){
 
@@ -637,6 +670,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                 {
                                     class: "o_video_preview",
                                     s_tag: "video", 
+                                    preload: "auto",
                                     id: s_id_video,
                                     src: o_state?.o_file?.s_src_object_url,
                                     // controls: "false",// those damn fcking controls, event listeners do not work on them, for example if you browse through the video keydown wont work after you clicked the range input slider 
@@ -688,7 +722,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                     'o_js__current_video_global_time_range_slider', 
                                     {
                                         f_o_jsh: function(){
-                                            console.log('o_js__current_video_global_time_range_slider render')
+                                            // console.log('o_js__current_video_global_time_range_slider render')
                                             return {
                                                 class: "slider_big_horizontal",
                                                 style: `
@@ -836,28 +870,13 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                         };
                                     },
                                       
-                                    onmousemove: function(){
-                    
-                                        let n_x = o_state.o_trn_mouse_move.n_x - window.event.clientX;
-                                        let n_ms = n_x * o_state.n_ms_per_px;
-                                        if(!o_state.b_mouse_down_o_scrollbar){
-                                            o_state.o_trn_mouse_move = false;
-                                            
-                                        }
-                                        if(o_state.b_mouse_down_o_scrollbar && o_state.o_trn_mouse_move){
-                                            
-                                            o_state.o_trn_mouse_move = {
-                                                n_x: window.event.clientX,
-                                                n_y: window.event.clientY
-                                            };
-                                            document.querySelector(".o_scrollbar").scrollLeft = document.querySelector(".o_scrollbar").scrollLeft + n_x;
-                                        }
-                                    },
+                                    
                                     onscroll: function(){
                                         if(o_state?.b_mouse_down_o_scrollbar){
                                             // console.log("scroll triggered")
                                             let n_trn_x_nor = this.scrollLeft / (this.scrollWidth-this.clientWidth)
                                             f_update_o_state_n_ms_playhead(n_trn_x_nor * f_n_ms_length_total());
+
                                         }
                                     }, 
                                 }
