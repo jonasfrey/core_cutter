@@ -1164,7 +1164,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
     // s_border_style: string
     // n_nor_line_height_p: number
     // n_rem_margin_bottom_interactive_elements: number
-    o_variables_css.n_rem_padding_interactive_elements = 1;
+    o_variables_css.n_rem_padding_interactive_elements = 0.5;
     let s_css_theme = f_s_css_from_o_variables(
         o_variables_css
     );
