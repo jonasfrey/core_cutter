@@ -1,8 +1,10 @@
 import {f_o_html__and_make_renderable} from "https://deno.land/x/f_o_html_from_o_js@2.1/mod.js";
 import {
     f_add_css,
-    f_s_css_prefixed
-} from "https://deno.land/x/f_add_css@0.6/mod.js"
+    f_s_css_prefixed, 
+    o_variables as o_variables_css, 
+    f_s_css_from_o_variables
+} from "https://deno.land/x/f_add_css@1.1/mod.js"
 
 import * as o_wave_surfer from './WaveSurfer.module.js'
 
@@ -292,13 +294,54 @@ let f_recursive_f_set_n_ms_playhead = function(){
             0
         )
     }
-    document.onmousemove = function(o_e){
+    let b_mouse_down = false;
+    let b_video_was_playing = false;
+    window.onpointerdown = (o_e)=>{
+        if(!o_state.v_o_vid?.paused){
+            b_video_was_playing = true
+            o_state.v_o_vid?.pause();
+        }else{
+            b_video_was_playing = false
+        }
+        o_state.o_trn_mouse_down.n_x = o_e.clientX;
+        o_state.o_trn_mouse_down.n_y = o_e.clientY;
+
+        o_state.b_prevent_on_seeking_call_because_current_time_change = true
+                                        
+        o_state.b_mouse_down_o_scrollbar = true
+        // document.querySelector("video")?.pause();
+
+        o_state.o_trn_mouse_move = {
+            n_x: o_e.clientX,
+            n_y: o_e.clientY
+        };
+
+        b_mouse_down = true
+    
+    };
+    window.onpointerup = (o_e)=>{
+        if(b_video_was_playing){
+            o_state.v_o_vid?.play();
+        }
+        b_mouse_down = false
+        o_state.b_mouse_down_o_scrollbar = false
+        o_state.b_prevent_on_seeking_call_because_current_time_change = false
+        o_state.o_trn_mouse_up.n_x = o_e.clientX;
+        o_state.o_trn_mouse_up.n_y = o_e.clientY;
+
+    };
+
+    window.onmousemove = function(o_e){
+        // if(!o_e.target.className.includes('slider_big_horizontal')){
+        //     return false
+        // }
         let n_x = o_state.o_trn_mouse_move.n_x - o_e.clientX;
         let n_ms = n_x * o_state.n_ms_per_px;
-        if(!o_state.b_mouse_down_o_scrollbar){
-            o_state.o_trn_mouse_move = false;
-        }
-        if(o_state.b_mouse_down_o_scrollbar && o_state.o_trn_mouse_move){
+        // if(!o_state.b_mouse_down_o_scrollbar){
+        //     o_state.o_trn_mouse_move = false;
+        // }
+        console.log(b_mouse_down)
+        if(b_mouse_down){
             
             o_state.o_trn_mouse_move = {
                 n_x: o_e.clientX,
@@ -307,7 +350,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
             document.querySelector(".o_scrollbar").scrollLeft = document.querySelector(".o_scrollbar").scrollLeft + n_x;
         }
     }
-    document.onwheel = function(o_e){
+    window.onwheel = function(o_e){
 
         if(o_state.v_o_vid){
             let n_nor = o_e.deltaY / 100;
@@ -316,17 +359,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
             o_o_js?.o_js__current_video_status?._f_update()
         }
     }
-    document.onmousedown = function(){
-        o_state.o_trn_mouse_down.n_x = window.event.clientX;
-        o_state.o_trn_mouse_down.n_y = window.event.clientY;
-    }
-    document.onmouseup = function(){
-        // console.log("mouseup")
-        o_state.b_mouse_down_o_scrollbar = false
-        o_state.b_prevent_on_seeking_call_because_current_time_change = false
-        o_state.o_trn_mouse_up.n_x = window.event.clientX;
-        o_state.o_trn_mouse_up.n_y = window.event.clientY;
-    }
+
     class O_playhead_file{
         constructor(
             n_ms_playhead_absolute,
@@ -674,12 +707,6 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                     id: s_id_video,
                                     src: o_state?.o_file?.s_src_object_url,
                                     // controls: "false",// those damn fcking controls, event listeners do not work on them, for example if you browse through the video keydown wont work after you clicked the range input slider 
-                                    onpointerdown: (o_e)=>{
-                                        console.log(o_e)
-                                        o_e.preventDefault();
-                                        o_e.stopPropagation();
-                                        return
-                                    },
                                     onplay: function(){
                                         o_state.n_id_recursive_function_call = window.requestAnimationFrame(f_recursive_f_set_n_ms_playhead)
                                     },
@@ -704,7 +731,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                                 position: absolute;
                                                 top: 0;
                                                 right: 0;
-                                                font-size: 10px;
+                                                font-size: 1rem;
                                                 padding: 0.3rem;`,
                                                 innerText: `
                                                 ${o_state?.o_playhead_file?.o_file?.o_js_file?.name}
@@ -858,18 +885,7 @@ let f_recursive_f_set_n_ms_playhead = function(){
                                             }
                                         )
                                     ],
-                                    onmousedown: function(){
-                                        o_state.b_prevent_on_seeking_call_because_current_time_change = true
-                                        
-                                        o_state.b_mouse_down_o_scrollbar = true
-                                        // document.querySelector("video")?.pause();
 
-                                        o_state.o_trn_mouse_move = {
-                                            n_x: window.event.clientX,
-                                            n_y: window.event.clientY
-                                        };
-                                    },
-                                      
                                     
                                     onscroll: function(){
                                         if(o_state?.b_mouse_down_o_scrollbar){
@@ -1124,114 +1140,55 @@ let f_recursive_f_set_n_ms_playhead = function(){
     let f_s_hsla = function(o_hsla){
         return `hsla(${360*o_hsla?.n_h} ${o_hsla?.n_s*100}% ${o_hsla?.n_l*100}% / ${o_hsla?.n_a})`
     }
-    
-    let s_core_css = `
-    ${a_s_theme.map(s_theme =>{
-        let o_theme_props = Object.assign(
-            {}, 
-            ...Object.keys(o_themes_props).filter(s=>s.includes(s_theme)).map(
-                s_prop => {
-                    let s_prop_without_s_theme = s_prop.replace(s_theme, '');
 
-                    return {
-                        [s_prop_without_s_theme]: o_themes_props[s_prop], 
-                    }
-                }
-            )
-        )
-        return `
-            .${s_theme} *{
-                background: ${f_s_hsla(o_theme_props.o_hsla__bg)};
-                color: ${f_s_hsla(o_theme_props.o_hsla__fg)};
-            }
-            .${s_theme} .clickable{
-                padding:1rem;
-                border-radius:3px;
-            }
-            .${s_theme} .clickable:hover{
-                background: ${f_s_hsla(o_theme_props.o_hsla__bg_hover)};
-                color: ${f_s_hsla(o_theme_props.o_hsla__fg_hover)};
-                cursor:pointer;
-            }
-            .${s_theme} .clickable.clicked{
-                background: ${f_s_hsla(o_theme_props.o_hsla__bg_active)};
-                color: ${f_s_hsla(o_theme_props.o_hsla__fg_active)};
-                cursor:pointer;
-            }
-            .${s_theme} .clickable.clicked:hover{
-                background: ${f_s_hsla(o_theme_props.o_hsla__bg_active_hover)};
-                color: ${f_s_hsla(o_theme_props.o_hsla__fg_active_hover)};
-                cursor:pointer;
-            }
-        `
-    }).join("\n")}
-    .position_relative{
-        position:relative
-    }
-    .o_js_s_name_month_n_year{
-        position:absolute;
-        top:100%;
-        left:0;
-        width:100%;
-    }
-    input, button{
-        border:none;
-        outline:none;
-        flex: 1 1 auto;
-    }
-    .input{
-        display:flex;
-    }
 
-    .d_flex{
-        display: flex;
-    }
-
-    .w_1_t_7{
-        align-items: center;
-        display: flex;
-        justify-content: center;
-        flex: 1 1 calc(100%/7);
-    }
-
-    .w_1_t_3{
-        align-items: center;
-        display: flex;
-        justify-content: center;
-        flex:1 1 calc(100%/3);
-    }
-    *{
-        font-size: 1.2rem;
-        color: rgb(25 25 25 / 50%);
-        background:white;
-        padding: 0;
-        margin:0;
-    }
-    .border_shadow_popup{
-        box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
-    }
-    .theme_dark .border_shadow_popup{
-        box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
-    }
-    *{
-        font-family:helvetica;
-    }
-    ${(new Array(20).fill(0)).map(
-        function(n, n_idx){
-            let num = (n_idx /10)
-            let s_n = num.toString().split('.').join('_');
-            return `
-                .p-${s_n}_rem{padding: ${num}rem}
-                .pl-${s_n}_rem{padding-left: ${num}rem}
-                .pr-${s_n}_rem{padding-right: ${num}rem}
-                .pt-${s_n}_rem{padding-top: ${num}rem}
-                .pb-${s_n}_rem{padding-bottom: ${num}rem}
-            `
-        }
-    ).join("\n")} `;
-    console.log(s_core_css)
+    // o_hsla__fg: O_vec4
+    // o_hsla__fg_hover: O_vec4
+    // o_hsla__fg_active: O_vec4
+    // o_hsla__fg_active_hover: O_vec4
+    // o_hsla__bg: O_vec4
+    // o_hsla__bg_hover: O_vec4
+    // o_hsla__bg_active: O_vec4
+    // o_hsla__bg_active_hover: O_vec4
+    // o_hsla_addition_vector_hover: O_vec4
+    // o_hsla_addition_vector_active: O_vec4
+    // n_rem_font_size_base: number
+    // a_n_factor_heading_font_size: number[]
+    // a_n_factor_heading_margin_botton: number[]
+    // o_hsla_primary: O_vec4
+    // o_hsla_secondary: O_vec4
+    // n_rem_padding_interactive_elements: number
+    // n_rem_border_size_interactive_elements: number
+    // n_px_border_clickable_with_border: number
+    // n_px_border_radius: number
+    // s_border_style: string
+    // n_nor_line_height_p: number
+    // n_rem_margin_bottom_interactive_elements: number
+    o_variables_css.n_rem_padding_interactive_elements = 1;
+    let s_css_theme = f_s_css_from_o_variables(
+        o_variables_css
+    );
     let s_css = `
-            ${s_core_css}
+            ${s_css_theme}
+            .border_shadow_popup{
+                box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
+            }
+            .theme_dark .border_shadow_popup{
+                box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
+            }
+            .w_1_t_7{
+                align-items: center;
+                display: flex;
+                justify-content: center;
+                flex: 1 1 calc(100%/7);
+            }
+        
+            .w_1_t_3{
+                align-items: center;
+                display: flex;
+                justify-content: center;
+                flex:1 1 calc(100%/3);
+            }
             .h_100vh{
                 height: 100vh;
                 flex-direction: column;
